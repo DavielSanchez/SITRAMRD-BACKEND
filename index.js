@@ -41,7 +41,7 @@ app.use(cors({
  *       404:
  *         description: Retorna un mensaje de error por Not Found.
  */
-app.get("/api", (req, res) => {
+app.get("/", (req, res) => {
     res.json({ mensaje: "¡Bienvenido a la API de SITRAMRD!" });
 });
 
