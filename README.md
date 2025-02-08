@@ -38,7 +38,7 @@ npm run start
 ## </> Documentacion
 ### Para ver la documentación:  
 [En local](http://localhost:3001/docs)  
-[API desplagada](https://xerothermic-marnie-davieldev-03f05cd9.koyeb.app/docs)  
+[API desplagada](https://strong-olympia-sitramrd-b5afe725.koyeb.app/docs)  
   
 **OJO:** Si decides verla en local, debes ejecutar la aplicacion, siguiendo los pasos anteriormente descritos.
 
