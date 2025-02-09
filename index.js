@@ -3,6 +3,7 @@ const dotenv = require('dotenv')
 const swaggerUi = require('swagger-ui-express')
 const specs = require('./swagger/swagger')
 const cors = require('cors')
+require('./database');
 
 dotenv.config();
 const app = express();
