@@ -10,10 +10,6 @@ const TarjetaSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: "Usuario",
   },
-  fecha_emision: {
-    type: Date,
-    required: true,
-  },
   estado: { 
     type: String,
     enum: ["Activa", "Inactiva"],
