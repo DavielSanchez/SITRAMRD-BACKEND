@@ -1,6 +1,6 @@
 const { Schema, model } = require("mongoose");
 
-const pagotarifa = new Schema({
+const pagotarifaSchema = new Schema({
   id_usuario: {
     type: Schema.Types.ObjectId,
     ref: "Usuario",
@@ -32,6 +32,6 @@ const pagotarifa = new Schema({
   },
 });
 
-const PagoTarifa = mongoose.model("pagotarifa", pagotarifa);
+const PagoTarifa = mongoose.model("pagotarifa", pagotarifaSchema);
 
 module.exports = PagoTarifa;

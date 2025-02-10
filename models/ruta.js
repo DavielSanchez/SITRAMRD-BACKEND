@@ -1,6 +1,6 @@
 const { Schema, model, default: mongoose } = require("mongoose");
 
-const ruta = new Schema({
+const rutaSchema = new Schema({
     nombre_ruta: {
         type: String,
         required: true
@@ -20,6 +20,6 @@ const ruta = new Schema({
     }
 })
 
-const Ruta = mongoose.model("ruta", ruta);
+const Ruta = mongoose.model("ruta", rutaSchema);
 
 module.exports = Ruta;

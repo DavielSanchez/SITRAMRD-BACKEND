@@ -30,11 +30,5 @@ const TarjetaSchema = new Schema({
   },
 });
 
-TarjetaSchema.pre("save", async function (next) {
-  if (!this.isModified("numero_tarjeta")) return next();
-  this.numero_tarjeta = await bcrypt.hash(this.numero_tarjeta, 10);
-  next();
-});
-
 const Tarjeta = model("Tarjeta", TarjetaSchema);
 module.exports = Tarjeta;

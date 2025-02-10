@@ -1,6 +1,6 @@
 const { Schema, model } = require("mongoose");
 
-const recarga = new Schema({
+const recargaSchema = new Schema({
   id_usuario: {
     type: Schema.Types.ObjectId,
     ref: "Usuario",
@@ -28,6 +28,6 @@ const recarga = new Schema({
   },
 });
 
-const Recarga = mongoose.model("recarga", recarga);
+const Recarga = mongoose.model("recarga", recargaSchema);
 
 module.exports = Recarga;

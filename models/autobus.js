@@ -1,6 +1,6 @@
 const { Schema, model } = require("mongoose");
 
-const autobus = new Schema({
+const autobusSchema = new Schema({
   placa: {
     type: String,
     required: true,
@@ -28,6 +28,6 @@ const autobus = new Schema({
   },
 });
 
-const AutoBus = mongoose.model("autobus", autobus);
+const AutoBus = mongoose.model("autobus", autobusSchema);
 
 module.exports = AutoBus;
