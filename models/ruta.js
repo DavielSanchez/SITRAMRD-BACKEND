@@ -5,7 +5,11 @@ const rutaSchema = new Schema({
         type: String,
         required: true
     },
+
     //Considero que las paradas y coordenadas deberian ser array!!!
+
+    // En verdad asi es como deberian ser, y creo que los pusieron asi en el diagrama. -DAS-
+
     paradas: {
         type: String,
         required: true
@@ -20,6 +24,6 @@ const rutaSchema = new Schema({
     }
 })
 
-const Ruta = mongoose.model("ruta", rutaSchema);
+const Ruta = mongoose.model("Ruta", rutaSchema);
 
 module.exports = Ruta;
