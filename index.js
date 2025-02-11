@@ -4,11 +4,13 @@ const swaggerUi = require('swagger-ui-express')
 const specs = require('./swagger/swagger')
 const cors = require('cors')
 require('./database');
+const { mongoConnection } = require('./database')
 
 dotenv.config();
 const app = express();
 
 app.use(express.json());
+mongoConnection(process.env.MONGODB_URI)
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
