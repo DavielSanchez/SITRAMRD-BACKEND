@@ -1,5 +1,5 @@
 const { Schema, model } = require("mongoose");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const Salting = 10;
 
 // Seria bueno que adoptemos una sola Nomenclatura, yo apoyo el uso de 'camelCase' o podemos usar 'PascalCase', pero es factible que nos acoplemos solo a uno para mejor comprension y orden. -DAS-
@@ -9,12 +9,12 @@ const userSchema = new Schema({
     apellido: { type: String, required: false },
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
-    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], required: true },
-    estado: { type: Boolean, required: true },
+    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], default: "Pasajero" },
     tarjetas: [{
-        tarjetaId: { type: Schema.Types.ObjectId, ref: tarjeta },
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'Tarjeta' },
         tarjetaNombre: { type: String, required: false }
     }],
+    estadoUsuario: { type: String, enum: ['activo', 'suspendido'], default: 'activo' },
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },
@@ -57,4 +57,4 @@ userSchema.methods.isCorrectPassword = function(userPassword, callback) {
 // Esta forma de exportar el modelo esta bien, pero puedes reducir aun mas este proceso a solo una linea. -DAS-
 // module.export = model("Usuario", userSchema); -DAS-
 
-module.exports = model("Usuario", userSchema); 
+module.exports = model("Usuario", userSchema);
