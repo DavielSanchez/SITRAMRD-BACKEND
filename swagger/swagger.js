@@ -12,16 +12,16 @@ const options = {
             },
         },
         servers: [{
+                url: "https://strong-olympia-sitramrd-b5afe725.koyeb.app",
+                description: "API desplegada"
+            },
+            {
                 url: "http://localhost:3001",
                 description: "Local host"
             },
-            {
-                url: "https://xerothermic-marnie-davieldev-03f05cd9.koyeb.app",
-                description: "API desplegada"
-            }
         ]
     },
-    apis: ["./routes/*.js", "./index.js"]
+    apis: ["./Endpoints/*.js", "./index.js"]
 };
 
 const specs = swaggerJsdoc(options);

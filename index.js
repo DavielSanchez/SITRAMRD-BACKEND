@@ -3,28 +3,37 @@ const dotenv = require('dotenv')
 const swaggerUi = require('swagger-ui-express')
 const specs = require('./swagger/swagger')
 const cors = require('cors')
-
+const { mongoConnection } = require('./DB')
 dotenv.config();
 const app = express();
 
-app.use(express.json());
+const Authentication = require('./Endpoints/Authentication')
 
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
+mongoConnection(process.env.MONGODB_URI)
+
+
+
 
 app.use(cors({
     origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
-
+app.use(express.json());
 /**
  * @swagger
  * tags:
- *   name: Principal | Bienvenida
+ *   - name: Principal | Bienvenida
+ *   - name: Autenticación | Usuarios
  */
+
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
+console.log(specs);
+
+app.use('/auth', Authentication)
 
 /**
  * @openapi
- * /api:
+ * /:
  *   get:
  *     summary: EndPoint principal de la API.
  *     description: Bienvenido a la API de SITRAMRD!
