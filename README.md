@@ -27,11 +27,13 @@ JWT_SECRET=%XNUNZaAtT9^yfHm!xgQ34
 ## ▶️ Ejecución
 ### 🚧 Modo Desarrollo
 ```bash
+npm install
 npm run dev
 ```
 
 ### 🚀 Modo Producción
 ```bash
+npm install
 npm run start
 ```
 * * *
