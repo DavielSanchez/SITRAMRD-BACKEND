@@ -3,24 +3,27 @@ const dotenv = require('dotenv')
 const swaggerUi = require('swagger-ui-express')
 const specs = require('./swagger/swagger')
 const cors = require('cors')
-
+const { mongoConnection } = require('./DB')
 dotenv.config();
 const app = express();
 
 app.use(express.json());
+mongoConnection(process.env.MONGODB_URI)
 
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
+
+
 
 app.use(cors({
     origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 }));
 
-/**
- * @swagger
- * tags:
- *   name: Principal | Bienvenida
- */
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
+    /**
+     * @swagger
+     * tags:
+     *   name: Principal | Bienvenida
+     */
 
 /**
  * @openapi
