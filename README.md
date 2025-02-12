@@ -20,7 +20,7 @@ Bienvenido al backend de **SITRAMRD**, una API robusta desarrollada con **Node.j
 Antes de ejecutar el proyecto, crea un archivo **.env** con las siguientes variables de entorno:
 ```env
 PORT=3001
-MONGO_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/dbname
+MONGODB_URI=mongodb+srv://Sitramrd:xLEwKCwQleBOjHNt@sitramrd.aibbg.mongodb.net/?retryWrites=true&w=majority&appName=SITRAMRD
 JWT_SECRET=%XNUNZaAtT9^yfHm!xgQ34
 ```
 
