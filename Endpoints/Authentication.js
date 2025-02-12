@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'miClaveSecreta';
 
-const userSchema = require('../Models/Usuario');
+const userSchema = require('../models/Usuario');
 
 
 /**
