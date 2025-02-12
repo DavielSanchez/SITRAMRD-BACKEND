@@ -5,8 +5,8 @@ const autobusSchema = new Schema({
     modelo: { type: String, required: true },
     capacidad: { type: String, required: true },
     estado: { type: String, enum: ["Activo", "Inactivo"], required: true },
-    id_ruta: { type: Schema.Types.ObjectId, ref: "Ruta" },
-    fecha_creacion: { type: Date, required: true }
+    idRuta: { type: Schema.Types.ObjectId, ref: "Ruta" },
+    fechaCreacion: { type: Date, required: true }
 });
 
 module.exports = model("Autobus", autobusSchema);

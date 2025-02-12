@@ -5,21 +5,21 @@ const Salting = 10;
 // Seria bueno que adoptemos una sola Nomenclatura, yo apoyo el uso de 'camelCase' o podemos usar 'PascalCase', pero es factible que nos acoplemos solo a uno para mejor comprension y orden. -DAS-
 
 const userSchema = new Schema({
-    // Esta forma de ordenar los objetos favorece la visibilidad y lectura de los mismos. -DAS-
     nombre: { type: String, required: true },
     apellido: { type: String, required: false },
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
-    user_rol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], required: true },
+    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], required: true },
     estado: { type: Boolean, required: true },
     tarjetas: [{
-        tarjetaID: { type: Schema.Types.ObjectId, ref: tarjeta },
+        tarjetaId: { type: Schema.Types.ObjectId, ref: tarjeta },
         tarjetaNombre: { type: String, required: false }
     }],
-    fecha_creacion: { type: Date, default: Date.now },
-    last_login: { type: Date, required: false },
-    fecha_modificacion: { type: Date, default: Date.now },
+    fechaCreacion: { type: Date, default: Date.now },
+    lastLogin: { type: Date, required: false },
+    fechaModificacion: { type: Date, default: Date.now },
 });
+
 
 // Middleware para el hash de la contraseña //
 userSchema.pre("save", function(next) {

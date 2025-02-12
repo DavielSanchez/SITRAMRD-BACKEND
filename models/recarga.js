@@ -1,12 +1,12 @@
 const { Schema, model } = require("mongoose");
 
 const recargaSchema = new Schema({
-    id_usuario: { type: Schema.Types.ObjectId, ref: "Usuario" },
-    id_tarjeta: { type: Schema.Types.ObjectId, ref: "Tarjeta" },
-    monto_recargado: { type: Number, required: true },
-    metodo_de_pago: { type: String, required: true },
-    estado_recarga: { type: String, enum: ["Pendiente", "Completada", "Fallida"], required: true },
-    fecha_recarga: { type: Date, default: Date.now }
+    idUsuario: { type: Schema.Types.ObjectId, ref: "Usuario" },
+    idTarjeta: { type: Schema.Types.ObjectId, ref: "Tarjeta" },
+    montoRecargado: { type: Number, required: true },
+    metodoDePago: { type: String, required: true },
+    estadoRecarga: { type: String, enum: ["Pendiente", "Completada", "Fallida"], required: true },
+    fechaRecarga: { type: Date, default: Date.now }
 });
 
 module.exports = model("Recarga", recargaSchema);
