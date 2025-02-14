@@ -5,6 +5,7 @@ const autobusSchema = new Schema({
     modelo: { type: String, required: true },
     capacidad: { type: String, required: true },
     estado: { type: String, enum: ["Activo", "Inactivo"], required: true },
+    ubicacionActual: { type: String, required: false },
     idRuta: { type: Schema.Types.ObjectId, ref: "Ruta" },
     fechaCreacion: { type: Date, required: true }
 });
