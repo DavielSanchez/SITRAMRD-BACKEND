@@ -18,6 +18,8 @@ const userSchema = new Schema({
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },
+    otpCode: { type: String },
+    otpTimestamp: { type: Date },
 });
 
 

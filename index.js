@@ -13,11 +13,11 @@ mongoConnection(process.env.MONGODB_URI)
 
 
 
-
-app.use(cors({
-    origin: ['*'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-}));
+app.use(cors());
+// app.use(cors({
+//     origin: ['*'],
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+// }));
 app.use(express.json());
 /**
  * @swagger
@@ -27,7 +27,6 @@ app.use(express.json());
  */
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
-console.log(specs);
 
 app.use('/auth', Authentication)
 

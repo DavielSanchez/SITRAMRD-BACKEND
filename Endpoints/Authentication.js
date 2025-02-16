@@ -2,6 +2,10 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const sendResetEmail = require("../emailService");
+
+const app = express();
+app.use(express.json());
 
 const SECRET_KEY = process.env.JWT_SECRET || 'miClaveSecreta';
 
@@ -222,7 +226,7 @@ router.post('/users/add', async(req, res) => {
 
         const newUser = new userSchema({
             nombre,
-            correo,
+            correo: correo.toLowerCase(),
             contraseña,
             userRol: "Pasajero",
             estadoUsuario: "activo",
@@ -340,6 +344,220 @@ router.post('/login', async(req, res) => {
 
 /**
  * @swagger
+ * /auth/users/send-otp:
+ *   post:
+ *     summary: Enviar un código OTP al correo electrónico
+ *     description: Este endpoint genera un código OTP y lo envía al correo electrónico proporcionado para verificación.
+ *     tags:
+ *       - Autenticación | Usuarios
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *                 example: "usuario@ejemplo.com"
+ *     responses:
+ *       200:
+ *         description: Código OTP enviado correctamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Código enviado correctamente"
+ *                 otp:
+ *                   type: integer
+ *                   example: 123456
+ *       400:
+ *         description: El correo electrónico es requerido.
+ *       404:
+ *         description: El correo electrónico no está registrado.
+ *       500:
+ *         description: Error enviando el correo.
+ */
+router.post('/send-otp', async(req, res) => {
+    const { correo } = req.body;
+
+
+
+    if (!correo) {
+        return res.status(400).json({ message: "El email es requerido" });
+    }
+
+    try {
+        const user = await userSchema.findOne({ correo: correo.toLowerCase() })
+
+        if (!user) {
+            return res.status(404).json({ message: "El correo electrónico no está registrado" });
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000);
+        console.log("OTP generado:", otpCode);
+
+        user.otpCode = otpCode;
+        user.otpTimestamp = Date.now();
+
+        await user.save();
+
+        await sendResetEmail(correo, "Código de verificación", otpCode);
+        res.status(200).json({ message: "Código enviado correctamente", otp: otpCode });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error enviando el correo" });
+    }
+});
+
+/**
+ * @swagger
+ * /auth/users/confirm-otp:
+ *   post:
+ *     summary: Confirmar el código OTP
+ *     description: Este endpoint valida el código OTP enviado previamente para permitir al usuario continuar con el proceso de recuperación de contraseña.
+ *     tags:
+ *       - Autenticación | Usuarios
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *                 example: "usuario@ejemplo.com"
+ *               otpCode:
+ *                 type: integer
+ *                 example: 123456
+ *     responses:
+ *       200:
+ *         description: OTP verificado correctamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "OTP verificado correctamente. Ahora puedes cambiar tu contraseña."
+ *       400:
+ *         description: Faltan datos requeridos o el OTP es incorrecto o ha expirado.
+ *       404:
+ *         description: El correo electrónico no está registrado.
+ *       500:
+ *         description: Error al confirmar el OTP.
+ */
+router.post('/confirm-otp', async(req, res) => {
+    const { correo, otpCode } = req.body;
+
+    if (!correo || !otpCode) {
+        console.log(req.body)
+        return res.status(400).json({ message: 'Faltan datos requeridos' })
+    }
+
+    try {
+        const user = await userSchema.findOne({ correo: correo.toLowerCase() });
+
+        if (!user) {
+            return res.status(404).json({ message: "El correo electrónico no está registrado" });
+        }
+
+        if (otpCode !== user.otpCode) {
+            return res.status(400).json({ message: "El código OTP es incorrecto" });
+        }
+
+        const currentTime = Date.now();
+        if (currentTime - user.otpTimestamp > 900000) {
+            return res.status(400).json({ message: "El código OTP ha expirado" });
+        }
+
+        res.status(200).json({ message: "OTP verificado correctamente. Ahora puedes cambiar tu contraseña." });
+
+    } catch (error) {
+        console.error("Error al confirmar el OTP:", error);
+        res.status(500).json({ message: "Error al confirmar el OTP" });
+    }
+})
+
+/**
+ * @swagger
+ * /auth/users/password/change:
+ *   put:
+ *     summary: Cambiar la contraseña de un usuario
+ *     description: Este endpoint permite a un usuario cambiar su contraseña después de haber confirmado el código OTP.
+ *     tags:
+ *       - Autenticación | Usuarios
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *                 example: "usuario@ejemplo.com"
+ *               contraseña:
+ *                 type: string
+ *                 example: "nuevaContraseña123"
+ *     responses:
+ *       200:
+ *         description: Contraseña cambiada exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Contraseña actualizada exitosamente"
+ *       400:
+ *         description: Faltan datos requeridos.
+ *       404:
+ *         description: El correo electrónico no está registrado.
+ *       500:
+ *         description: Error al cambiar la contraseña.
+ */
+router.put('/users/password/change', async(req, res) => {
+    const { correo, contraseña } = req.body
+
+    if (!correo || !contraseña) {
+        return res.status(400).json({ message: 'Faltan datos requeridos.' })
+    }
+
+    try {
+        const user = await userSchema.findOne({ correo: correo.toLowerCase() });
+
+        if (!user) {
+            return res.status(404).json({ message: "El correo electrónico no está registrado" });
+        }
+
+        const hashedPassword = await bcrypt.hash(contraseña, 10);
+
+        user.password = hashedPassword;
+        user.otpCode = null; // Limpiar OTP
+        user.otpTimestamp = null; // Limpiar marca de tiempo
+
+        await user.save();
+
+        res.status(200).json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+        console.error("Error al cambiar la contraseña:", error);
+        res.status(500).json({ message: "Error al cambiar la contraseña" });
+    }
+
+})
+
+/**
+ * @swagger
  * /auth/users/put/{id}:
  *   put:
  *     summary: Actualizar un usuario
@@ -423,70 +641,69 @@ router.put('/users/put/:id', async(req, res) => {
     }
 });
 
-/**
- * @swagger
- * /auth/users/password/update/{id}:
- *   put:
- *     summary: Actualizar contraseña de un usuario
- *     description: Permite actualizar la contraseña de un usuario en la plataforma.
- *     tags:
- *       - Autenticación | Usuarios
- *     parameters:
- *       - name: id
- *         in: path
- *         description: ID del usuario cuya contraseña será actualizada
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               contraseña:
- *                 type: string
- *                 example: "nuevacontraseña123"
- *     responses:
- *       200:
- *         description: Contraseña actualizada correctamente.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Contraseña actualizada exitosamente."
- *       400:
- *         description: Error en la solicitud, posiblemente la contraseña no fue proporcionada correctamente.
- *       404:
- *         description: Usuario no encontrado.
- *       500:
- *         description: Error en el servidor.
- */
-router.put('/users/password/update/:id', async(req, res) => {
-    const id = req.params.id
-    const {
-        contraseña
-    } = userSchema(req.body)
-    const hashedPassword = await bcrypt.hash(contraseña, 10);
-    userSchema
-        .updateOne({ _id: id }, {
-            $set: {
-                contraseña: hashedPassword,
-                fechaModificacion: new Date()
-            }
-        })
-        .then((data) => {
-            res.json(data)
-        })
-        .catch((error) => {
-            console.error(error)
-        })
-})
-
+// /**
+//  * @swagger
+//  * /auth/users/password/update/{id}:
+//  *   put:
+//  *     summary: Actualizar contraseña de un usuario
+//  *     description: Permite actualizar la contraseña de un usuario en la plataforma.
+//  *     tags:
+//  *       - Autenticación | Usuarios
+//  *     parameters:
+//  *       - name: id
+//  *         in: path
+//  *         description: ID del usuario cuya contraseña será actualizada
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               contraseña:
+//  *                 type: string
+//  *                 example: "nuevacontraseña123"
+//  *     responses:
+//  *       200:
+//  *         description: Contraseña actualizada correctamente.
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 message:
+//  *                   type: string
+//  *                   example: "Contraseña actualizada exitosamente."
+//  *       400:
+//  *         description: Error en la solicitud, posiblemente la contraseña no fue proporcionada correctamente.
+//  *       404:
+//  *         description: Usuario no encontrado.
+//  *       500:
+//  *         description: Error en el servidor.
+//  */
+// router.put('/users/password/update/:id', async(req, res) => {
+//     const id = req.params.id
+//     const {
+//         contraseña
+//     } = userSchema(req.body)
+//     const hashedPassword = await bcrypt.hash(contraseña, 10);
+//     userSchema
+//         .updateOne({ _id: id }, {
+//             $set: {
+//                 contraseña: hashedPassword,
+//                 fechaModificacion: new Date()
+//             }
+//         })
+//         .then((data) => {
+//             res.json(data)
+//         })
+//         .catch((error) => {
+//             console.error(error)
+//         })
+// })
 
 /**
  * @swagger
