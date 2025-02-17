@@ -6,6 +6,7 @@ const cors = require('cors')
 const { mongoConnection } = require('./DB')
 dotenv.config();
 const app = express();
+const Ruta = require('./Endpoints/Ruta')
 
 const Authentication = require('./Endpoints/Authentication')
 
@@ -29,6 +30,7 @@ app.use(express.json());
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
 app.use('/auth', Authentication)
+app.use('/ruta', Ruta)
 
 /**
  * @openapi
