@@ -1,5 +1,4 @@
-//ESTE ES UN MIDDLEWARE SOLO PARA PERMISOS DE ADMINISTRADOR U OPERADOR
-
+// middleware/verificarRol.js
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -24,4 +23,4 @@ const verificarRol = (rolesPermitidos) => {
     };
 }
 
-module.exports = { verificarRol };
+module.exports = verificarRol;
