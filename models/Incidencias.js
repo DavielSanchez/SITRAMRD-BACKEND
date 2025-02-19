@@ -3,7 +3,7 @@ const { model, Schema } = require('mongoose');
 const IncidenciaSchema = new Schema({
     descripcion: { type: String, required: true },
     idUsuario: { type: Schema.Types.ObjectId, ref: "Usuario" },
-    idRuta: { type: Schema.Types.ObjectId, ref: "Ruta" },
+    idAutoBus: { type: Schema.Types.ObjectId, ref: "AutoBus" },
     fechaDeReporte: { type: Date, default: Date.now() },
     estado: { 
         type: String, 

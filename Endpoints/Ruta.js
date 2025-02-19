@@ -776,7 +776,7 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
  *                 type: string
  *                 description: Descripción de la incidencia
  *                 example: "Autobús con retraso debido a condiciones climáticas."
- *               idRuta:
+ *               idAutoBus:
  *                 type: string
  *                 description: ID de la ruta asociada a la incidencia
  *                 example: "605c72ef1532071b7c8c8a12"
@@ -802,7 +802,7 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
  *                       type: string
  *                       description: Descripción de la incidencia
  *                       example: "Autobús con retraso debido a condiciones climáticas."
- *                     idRuta:
+ *                     idAutoBus:
  *                       type: string
  *                       description: ID de la ruta asociada a la incidencia
  *                       example: "605c72ef1532071b7c8c8a12"
@@ -828,7 +828,7 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Faltan parámetros requeridos: descripcion o idRuta"
+ *                   example: "Faltan parámetros requeridos: descripcion o idAutoBus"
  *       500:
  *         description: Error en el servidor
  *         content:
@@ -847,17 +847,17 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
 
   router.post('/incidencia/add', verificarToken, verificarRol(["Operador", "Administrador"]), async (req, res) => {
     try {
-        const { descripcion, idRuta } = req.body;
+        const { descripcion, idAutoBus } = req.body;
 
-        if (!descripcion || !idRuta) {
-            return res.status(400).json({ message: 'Faltan parámetros requeridos: descripcion o idRuta' });
+        if (!descripcion || !idAutoBus) {
+            return res.status(400).json({ message: 'Faltan parámetros requeridos: descripcion o idAutoBus' });
         }
 
         const idUsuario = req.user.id;
 
         const incidencia = new IncidenciaSchema({
           descripcion: descripcion,
-          idRuta: idRuta,
+          idAutoBus: idAutoBus,
           idUsuario: idUsuario,
           estado: 'Pendiente',
       });
@@ -871,6 +871,197 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
         res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
 });
+
+/**
+ * @swagger
+ * /incidencia/estado/{id}:
+ *   put:
+ *     summary: Modificar el estado de una incidencia
+ *     description: Permite modificar el estado de una incidencia especificada por su ID.
+ *     tags: [Incidencias]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la incidencia que se desea actualizar.
+ *         schema:
+ *           type: string
+ *           example: "60f4e3b4d8b9b40015c68409"
+ *       - in: body
+ *         name: estado
+ *         required: true
+ *         description: Nuevo estado para la incidencia.
+ *         schema:
+ *           type: object
+ *           properties:
+ *             estado:
+ *               type: string
+ *               description: Estado de la incidencia (puede ser 'Pendiente', 'Resuelto', 'En Proceso', etc.)
+ *               example: "Resuelto"
+ *     responses:
+ *       200:
+ *         description: Estado de la incidencia actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Estado de la incidencia actualizado correctamente"
+ *                 incidencia:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID de la incidencia
+ *                       example: "60f4e3b4d8b9b40015c68409"
+ *                     descripcion:
+ *                       type: string
+ *                       description: Descripción de la incidencia
+ *                       example: "Autobús con retraso debido a condiciones climáticas."
+ *                     estado:
+ *                       type: string
+ *                       description: Estado actual de la incidencia
+ *                       example: "Resuelto"
+ *                     fechaDeReporte:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Fecha en que se reportó la incidencia
+ *                       example: "2025-02-19T14:30:00.000Z"
+ *       400:
+ *         description: Faltan parámetros requeridos o el parámetro "estado" no está presente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Falta el parámetro "estado".'
+ *       404:
+ *         description: Incidencia no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Incidencia no encontrada.'
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Hubo un error en el servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Error de conexión a la base de datos"
+ */
+
+
+router.put('/incidencia/estado/:id', verificarToken, verificarRol(["Operador", "Administrador"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado) {
+        return res.status(400).json({ message: 'Falta el parámetro "estado".' });
+    }
+
+    const incidencia = await IncidenciaSchema.findById(id);
+
+    if (!incidencia) {
+        return res.status(404).json({ message: 'Incidencia no encontrada.' });
+    }
+
+    incidencia.estado = estado; 
+
+    await incidencia.save();
+
+    res.status(200).json({ message: "Estado de la incidencia actualizado correctamente", incidencia });
+
+  } catch (err) {
+    res.status(500).json({ message: "Hubo un error en el servidor", err });
+  }
+});
+
+/**
+ * @swagger
+ * /incidencia/{id}:
+ *   delete:
+ *     summary: Eliminar una incidencia
+ *     description: Permite eliminar una incidencia especificada por su ID.
+ *     tags: [Incidencias]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la incidencia que se desea eliminar.
+ *         schema:
+ *           type: string
+ *           example: "60f4e3b4d8b9b40015c68409"
+ *     responses:
+ *       200:
+ *         description: Incidencia eliminada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Incidencia eliminada correctamente"
+ *       404:
+ *         description: Incidencia no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Incidencia no encontrada.'
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Hubo un error en el servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Error de conexión a la base de datos"
+ */
+
+
+router.delete('/incidencia/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar y eliminar la incidencia
+    const incidencia = await IncidenciaSchema.findByIdAndDelete(id);
+
+    if (!incidencia) {
+      return res.status(404).json({ message: 'Incidencia no encontrada.' });
+    }
+
+    res.status(200).json({ message: "Incidencia eliminada correctamente" });
+    
+  } catch (err) {
+    res.status(500).json({ message: "Hubo un error en el servidor", err });
+  }
+});
+
+
 
 
 /**
@@ -901,17 +1092,17 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
  *                         type: string
  *                         description: Descripción de la incidencia
  *                         example: "Autobús con retraso debido a condiciones climáticas."
- *                       idRuta:
+ *                       idAutobus:  # Cambiado de idRuta a idAutobus
  *                         type: object
  *                         properties:
  *                           _id:
  *                             type: string
- *                             description: ID de la ruta asociada
+ *                             description: ID del autobús asociado
  *                             example: "605c72ef1532071b7c8c8a12"
- *                           nombreRuta:
+ *                           placa:
  *                             type: string
- *                             description: Nombre de la ruta asociada
- *                             example: "Ruta 1"
+ *                             description: Placa del autobús asociado
+ *                             example: "ABC123"
  *                       idUsuario:
  *                         type: object
  *                         properties:
@@ -956,7 +1147,7 @@ router.get('/incidencia/all', async (req, res) => {
     try {
         const incidencias = await IncidenciaSchema.find()
             .populate('idUsuario', 'nombre correo')
-            .populate('idRuta', 'nombreRuta') 
+            .populate('idAutoBus', 'placa') 
             .sort({ fechaDeReporte: -1 }); 
         res.status(200).json({ incidencias });
     } catch (err) {
@@ -1019,17 +1210,17 @@ router.get('/incidencia/all', async (req, res) => {
  *                         type: string
  *                         description: Descripción de la incidencia
  *                         example: "Autobús con retraso debido a condiciones climáticas."
- *                       idRuta:
+ *                       idAutobus:  # Cambiado de idRuta a idAutobus
  *                         type: object
  *                         properties:
  *                           _id:
  *                             type: string
- *                             description: ID de la ruta asociada
+ *                             description: ID del autobús asociado
  *                             example: "605c72ef1532071b7c8c8a12"
- *                           nombreRuta:
+ *                           placa:
  *                             type: string
- *                             description: Nombre de la ruta asociada
- *                             example: "Ruta 1"
+ *                             description: Placa del autobús asociado
+ *                             example: "ABC123"
  *                       idUsuario:
  *                         type: object
  *                         properties:
@@ -1070,7 +1261,6 @@ router.get('/incidencia/all', async (req, res) => {
  */
 
 
-
 router.get('/incidencia/reporte', verificarToken, verificarRol(["Administrador"]), async (req, res) => {
   try {
       const { fechaInicio, fechaFin, estado } = req.query;
@@ -1082,7 +1272,7 @@ router.get('/incidencia/reporte', verificarToken, verificarRol(["Administrador"]
 
       const incidencias = await IncidenciaSchema.find(query)
           .populate('idUsuario', 'nombre correo')
-          .populate('idRuta', 'nombreRuta'); 
+          .populate('idAutobus', 'placa');  // Cambiado de idRuta a idAutobus
 
       res.status(200).json({ incidencias });
 
@@ -1090,6 +1280,7 @@ router.get('/incidencia/reporte', verificarToken, verificarRol(["Administrador"]
       res.status(500).json({ message: 'Hubo un error al generar el reporte', err });
   }
 });
+
 
 /**
  * @swagger
