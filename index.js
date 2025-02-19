@@ -14,11 +14,11 @@ mongoConnection(process.env.MONGODB_URI)
 
 
 
-app.use(cors());
-// app.use(cors({
-//     origin: ['*'],
-//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-// }));
+// app.use(cors());
+app.use(cors({
+    origin: ['*'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+}));
 app.use(express.json());
 /**
  * @swagger

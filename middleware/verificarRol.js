@@ -1,4 +1,4 @@
-// middleware/verificarRol.js
+// Nota para el desarrollador que lea esto: Este middleware permite verificar el rol que le des como parametro ej: "Administrador"
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -12,6 +12,8 @@ const verificarRol = (rolesPermitidos) => {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = decoded;
+            console.log(req.user);  // Imprime los datos del usuario para depuración
+
             if (!rolesPermitidos.includes(req.user.userRol)) {
                 return res.status(403).json({ message: 'Acceso Denegado, No tienes permisos suficientes para realizar esta solicitud' });
             }
