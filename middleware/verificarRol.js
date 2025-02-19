@@ -12,7 +12,6 @@ const verificarRol = (rolesPermitidos) => {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = decoded;
-            console.log(req.user);  // Imprime los datos del usuario para depuración
 
             if (!rolesPermitidos.includes(req.user.userRol)) {
                 return res.status(403).json({ message: 'Acceso Denegado, No tienes permisos suficientes para realizar esta solicitud' });
