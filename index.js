@@ -8,6 +8,7 @@ dotenv.config();
 const app = express();
 
 const Authentication = require('./Endpoints/Authentication')
+const Billetera = require('./Endpoints/Billetera')
 
 mongoConnection(process.env.MONGODB_URI)
 
@@ -29,6 +30,7 @@ app.use(express.json());
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
 app.use('/auth', Authentication)
+app.use('/wallet', Billetera)
 
 /**
  * @openapi
