@@ -6,7 +6,8 @@ const cors = require('cors')
 const { mongoConnection } = require('./DB')
 dotenv.config();
 const app = express();
-
+const Ruta = require('./Endpoints/Ruta')
+const Incidencia = require('./Endpoints/Incidencia')
 const Authentication = require('./Endpoints/Authentication')
 const Billetera = require('./Endpoints/Billetera')
 
@@ -14,11 +15,11 @@ mongoConnection(process.env.MONGODB_URI)
 
 
 
-app.use(cors());
-// app.use(cors({
-//     origin: ['*'],
-//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-// }));
+// app.use(cors());
+app.use(cors({
+    origin: ['*'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+}));
 app.use(express.json());
 /**
  * @swagger
@@ -31,6 +32,9 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
 app.use('/auth', Authentication)
 app.use('/wallet', Billetera)
+app.use('/ruta', Ruta)
+app.use('/incidencia', Incidencia)
+
 
 /**
  * @openapi
