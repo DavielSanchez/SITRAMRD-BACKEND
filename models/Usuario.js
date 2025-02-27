@@ -6,15 +6,19 @@ const Salting = 10;
 
 const userSchema = new Schema({
     nombre: { type: String, required: true },
-    apellido: { type: String, required: false },
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
     userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], default: "Pasajero" },
-    tarjetas: [{
-        tarjetaId: { type: Schema.Types.ObjectId, ref: 'Tarjeta' },
+    userImage: { type: String, required: true },
+    tarjetasVirtuales: [{
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
         tarjetaNombre: { type: String, required: false }
     }],
+    tarjetasFisicas: [{
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
+    }],
     estadoUsuario: { type: String, enum: ['activo', 'suspendido'], default: 'activo' },
+    tema: { type: String, default: 'light' },
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },
