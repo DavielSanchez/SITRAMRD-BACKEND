@@ -27,6 +27,7 @@
         "nodemailer": "^6.10.0",
         "path": "^0.12.7",
         "sitramrd-backend": "file:",
+        "stripe": "^17.7.0",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.1",
         "uuid": "^11.0.5"

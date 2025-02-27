@@ -12,6 +12,20 @@ const SECRET_KEY = process.env.JWT_SECRET || 'miClaveSecreta';
 const userSchema = require('../models/Usuario');
 
 
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.sendStatus(401); // No autorizado
+
+    jwt.verify(token, SECRET_KEY, (err, user) => {
+        if (err) return res.sendStatus(403); // Prohibido
+        req.user = user;
+        next();
+    });
+};
+
+
 /**
  * @swagger
  * /auth/users:
@@ -217,7 +231,7 @@ router.get('/users/nombre/:nombre', (req, res) => {
  */
 router.post('/users/add', async(req, res) => {
     try {
-        const { nombre, correo, contraseña } = req.body;
+        const { nombre, correo, contraseña, userImage } = req.body;
 
         const existingUser = await userSchema.findOne({ correo });
         if (existingUser) {
@@ -229,7 +243,9 @@ router.post('/users/add', async(req, res) => {
             correo: correo.toLowerCase(),
             contraseña,
             userRol: "Pasajero",
+            userImage,
             estadoUsuario: "activo",
+            tema: "light",
             lastLogin: new Date(),
         });
 
@@ -240,6 +256,8 @@ router.post('/users/add', async(req, res) => {
             nombre: newUser.nombre,
             correo: newUser.correo,
             userRol: newUser.userRol,
+            userImage: newUser.userImage,
+            theme: newUser.tema,
             estadoUsuario: newUser.estadoUsuario,
             lastLogin: newUser.lastLogin,
         };
@@ -254,11 +272,17 @@ router.post('/users/add', async(req, res) => {
                 nombre: newUser.nombre,
                 correo: newUser.correo,
                 userRol: newUser.userRol,
+                theme: newUser.tema,
             }
         });
 
     } catch (error) {
         console.error(error);
+
+        if (error.code === 11000) {
+            return res.status(400).json({ message: "El correo ya está registrado" });
+        }
+
         res.status(500).json({ message: 'Error en el servidor', error });
     }
 });
@@ -306,10 +330,11 @@ router.post('/users/add', async(req, res) => {
  */
 router.post('/login', async(req, res) => {
     const { correo, contraseña } = req.body;
+    const email = correo.toLowerCase()
 
     try {
 
-        const user = await userSchema.findOne({ correo });
+        const user = await userSchema.findOne({ correo: { $regex: email, $options: "i" } });
         if (!user) {
             return res.status(401).json({ message: 'Usuario no encontrado' });
 
@@ -329,6 +354,7 @@ router.post('/login', async(req, res) => {
             correo: user.correo,
             userRol: user.userRol,
             estadoUsuario: user.estadoUsuario,
+            theme: user.tema,
             lastLogin: user.lastLogin
         }
 
@@ -541,12 +567,11 @@ router.put('/users/password/change', async(req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(contraseña, 10);
+        user.contraseña = hashedPassword;
+        user.otpCode = null;
+        user.otpTimestamp = null;
 
-        user.password = hashedPassword;
-        user.otpCode = null; // Limpiar OTP
-        user.otpTimestamp = null; // Limpiar marca de tiempo
-
-        await user.save();
+        await userSchema.updateOne({ correo: correo.toLowerCase() }, { $set: { contraseña: hashedPassword, otpCode: null, otpTimestamp: null } });
 
         res.status(200).json({ message: "Contraseña actualizada exitosamente" });
     } catch (error) {
@@ -614,7 +639,7 @@ router.put('/users/password/change', async(req, res) => {
 router.put('/users/put/:id', async(req, res) => {
     try {
         const id = req.params.id;
-        const { nombre, apellido, userRol, estadoUsuario } = req.body;
+        const { nombre, apellido, userRol, estadoUsuario, userImage } = req.body;
 
         // Verifica que el usuario exista antes de actualizarlo
         const usuarioExistente = await userSchema.findById(id);
@@ -627,19 +652,119 @@ router.put('/users/put/:id', async(req, res) => {
             nombre,
             apellido,
             userRol,
+            userImage,
             estadoUsuario,
             fechaModificacion: Date.now() // Actualiza automáticamente la fecha de modificación
         };
 
         const resultado = await userSchema.findByIdAndUpdate(id, updateFields, { new: true });
 
-        res.json({ message: "Usuario actualizado con éxito", usuario: resultado });
+        const payload = {
+            id: usuarioExistente._id,
+            nombre: usuarioExistente.nombre,
+            correo: usuarioExistente.correo,
+            userRol: usuarioExistente.userRol,
+            userImage: usuarioExistente.userImage,
+            estadoUsuario: usuarioExistente.estadoUsuario,
+            theme: usuarioExistente.tema,
+            lastLogin: usuarioExistente.lastLogin
+        }
+
+        const newToken = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" } // O el tiempo que prefieras
+        );
+
+        res.json({ message: "Usuario actualizado con éxito", token: newToken });
 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error en el servidor", error });
     }
 });
+
+/**
+ * @swagger
+ * /auth/users/put/theme:
+ *   put:
+ *     summary: Actualizar el tema de un usuario
+ *     description: Permite modificar el tema preferido de un usuario en la base de datos y devuelve un nuevo token con el tema actualizado.
+ *     tags:
+ *       - Autenticación | Usuarios
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: ID del usuario a actualizar.
+ *                 example: "65b6f3a2c5e4e12f8a4b7d32"
+ *               theme:
+ *                 type: string
+ *                 description: Tema preferido del usuario.
+ *                 enum: ["light", "dark"]
+ *                 example: "dark"
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado correctamente y nuevo token generado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Theme actualizado con éxito"
+ *                 token:
+ *                   type: string
+ *                   description: Nuevo token con el tema actualizado.
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         description: Error en los datos enviados.
+ *       404:
+ *         description: Usuario no encontrado.
+ *       500:
+ *         description: Error en el servidor.
+ */
+router.put('/users/put/theme/:id', async(req, res) => {
+    try {
+        const id = req.params.id
+        const { theme } = req.body;
+
+        const usuarioExistente = await userSchema.findById(id);
+        if (!usuarioExistente) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // Actualizar el theme en la base de datos
+        usuarioExistente.tema = theme;
+        usuarioExistente.fechaModificacion = Date.now();
+        await usuarioExistente.save();
+
+        const payload = {
+            id: usuarioExistente._id,
+            nombre: usuarioExistente.nombre,
+            correo: usuarioExistente.correo,
+            userRol: usuarioExistente.userRol,
+            userImage: usuarioExistente.userImage,
+            estadoUsuario: usuarioExistente.estadoUsuario,
+            theme: usuarioExistente.tema,
+            lastLogin: usuarioExistente.lastLogin
+        }
+
+        // Crear un nuevo token con el theme actualizado
+        const newToken = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" } // O el tiempo que prefieras
+        );
+
+        res.json({ message: "Theme actualizado con éxito", token: newToken });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error en el servidor", error });
+    }
+});
+
 
 // /**
 //  * @swagger
