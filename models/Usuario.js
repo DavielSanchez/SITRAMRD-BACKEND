@@ -9,6 +9,7 @@ const userSchema = new Schema({
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
     userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], default: "Pasajero" },
+    userImage: { type: String, required: true },
     tarjetasVirtuales: [{
         tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
         tarjetaNombre: { type: String, required: false }

@@ -231,7 +231,7 @@ router.get('/users/nombre/:nombre', (req, res) => {
  */
 router.post('/users/add', async(req, res) => {
     try {
-        const { nombre, correo, contraseña } = req.body;
+        const { nombre, correo, contraseña, userImage } = req.body;
 
         const existingUser = await userSchema.findOne({ correo });
         if (existingUser) {
@@ -243,6 +243,7 @@ router.post('/users/add', async(req, res) => {
             correo: correo.toLowerCase(),
             contraseña,
             userRol: "Pasajero",
+            userImage,
             estadoUsuario: "activo",
             tema: "light",
             lastLogin: new Date(),
@@ -255,6 +256,7 @@ router.post('/users/add', async(req, res) => {
             nombre: newUser.nombre,
             correo: newUser.correo,
             userRol: newUser.userRol,
+            userImage: newUser.userImage,
             theme: newUser.tema,
             estadoUsuario: newUser.estadoUsuario,
             lastLogin: newUser.lastLogin,
@@ -328,10 +330,11 @@ router.post('/users/add', async(req, res) => {
  */
 router.post('/login', async(req, res) => {
     const { correo, contraseña } = req.body;
+    const email = correo.toLowerCase()
 
     try {
 
-        const user = await userSchema.findOne({ correo: { $regex: correo, $options: "i" } });
+        const user = await userSchema.findOne({ correo: { $regex: email, $options: "i" } });
         if (!user) {
             return res.status(401).json({ message: 'Usuario no encontrado' });
 
@@ -564,12 +567,11 @@ router.put('/users/password/change', async(req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(contraseña, 10);
+        user.contraseña = hashedPassword;
+        user.otpCode = null;
+        user.otpTimestamp = null;
 
-        user.password = hashedPassword;
-        user.otpCode = null; // Limpiar OTP
-        user.otpTimestamp = null; // Limpiar marca de tiempo
-
-        await user.save();
+        await userSchema.updateOne({ correo: correo.toLowerCase() }, { $set: { contraseña: hashedPassword, otpCode: null, otpTimestamp: null } });
 
         res.status(200).json({ message: "Contraseña actualizada exitosamente" });
     } catch (error) {
@@ -637,7 +639,7 @@ router.put('/users/password/change', async(req, res) => {
 router.put('/users/put/:id', async(req, res) => {
     try {
         const id = req.params.id;
-        const { nombre, apellido, userRol, estadoUsuario } = req.body;
+        const { nombre, apellido, userRol, estadoUsuario, userImage } = req.body;
 
         // Verifica que el usuario exista antes de actualizarlo
         const usuarioExistente = await userSchema.findById(id);
@@ -650,13 +652,28 @@ router.put('/users/put/:id', async(req, res) => {
             nombre,
             apellido,
             userRol,
+            userImage,
             estadoUsuario,
             fechaModificacion: Date.now() // Actualiza automáticamente la fecha de modificación
         };
 
         const resultado = await userSchema.findByIdAndUpdate(id, updateFields, { new: true });
 
-        res.json({ message: "Usuario actualizado con éxito", usuario: resultado });
+        const payload = {
+            id: usuarioExistente._id,
+            nombre: usuarioExistente.nombre,
+            correo: usuarioExistente.correo,
+            userRol: usuarioExistente.userRol,
+            userImage: usuarioExistente.userImage,
+            estadoUsuario: usuarioExistente.estadoUsuario,
+            theme: usuarioExistente.tema,
+            lastLogin: usuarioExistente.lastLogin
+        }
+
+        const newToken = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" } // O el tiempo que prefieras
+        );
+
+        res.json({ message: "Usuario actualizado con éxito", token: newToken });
 
     } catch (error) {
         console.error(error);
@@ -730,6 +747,7 @@ router.put('/users/put/theme/:id', async(req, res) => {
             nombre: usuarioExistente.nombre,
             correo: usuarioExistente.correo,
             userRol: usuarioExistente.userRol,
+            userImage: usuarioExistente.userImage,
             estadoUsuario: usuarioExistente.estadoUsuario,
             theme: usuarioExistente.tema,
             lastLogin: usuarioExistente.lastLogin

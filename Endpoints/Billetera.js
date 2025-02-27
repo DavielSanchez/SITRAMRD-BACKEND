@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
+const Stripe = require('stripe')
+
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
 
 const app = express();
 app.use(express.json());
@@ -504,6 +507,71 @@ router.get('/pagos/user/:userId', (req, res) => {
         });
 });
 
+/**
+ * @swagger
+ * /wallet/create-payment-intent:
+ *   post:
+ *     summary: Crear un Intento de Pago con Stripe
+ *     description: Genera un Payment Intent en Stripe y devuelve el clientSecret necesario para procesar el pago.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: integer
+ *                 description: Monto del pago en la menor unidad de la moneda (por ejemplo, centavos para USD).
+ *                 example: 5000
+ *               currency:
+ *                 type: string
+ *                 description: Código de la moneda en formato ISO 4217.
+ *                 example: "usd"
+ *     responses:
+ *       200:
+ *         description: Client Secret generado exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 clientSecret:
+ *                   type: string
+ *                   description: Client Secret para confirmar el pago en el frontend.
+ *                   example: "pi_1234567890_secret_abcdefghij"
+ *       400:
+ *         description: Parámetros inválidos (monto o moneda faltante).
+ *       500:
+ *         description: Error interno del servidor.
+ */
+router.post("/create-payment-intent", async(req, res) => {
+    try {
+        const { amount, currency } = req.body;
+
+        if (!amount || !currency) {
+            return res.status(400).json({ error: "Monto y moneda son requeridos" });
+        }
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount,
+            currency,
+        });
+
+        console.log("PaymentIntent creado:", paymentIntent); // 🔍 Debug
+
+        if (!paymentIntent.client_secret) {
+            throw new Error("Stripe no generó un client_secret");
+        }
+
+        res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error) {
+        console.error("Error en create-payment-intent:", error);
+        res.status(500).json({ error: "Error interno en el servidor" });
+    }
+});
 
 
 /**
