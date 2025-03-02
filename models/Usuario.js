@@ -17,8 +17,17 @@ const userSchema = new Schema({
     tarjetasFisicas: [{
         tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
     }],
+    customerId: { type: String, unique: true },
     estadoUsuario: { type: String, enum: ['activo', 'suspendido'], default: 'activo' },
     tema: { type: String, default: 'light' },
+    metodosPago: [{
+        paymentMethodId: { type: String },
+        cardType: { type: String },
+        last4: { type: String },
+        expMonth: { type: Number },
+        expYear: { type: Number },
+        brand: { type: String },
+    }],
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },

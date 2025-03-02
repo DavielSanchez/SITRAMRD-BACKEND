@@ -113,21 +113,21 @@ const verificarRol = require("../middleware/verificarRol");
 
 
 
-router.post("/add", verificarRol(["Administrador"]), async (req, res) => {
-  const { nombreRuta, paradas, coordenadas } = req.body;
-  const ruta = new RutaSchema({
-    nombreRuta,
-    paradas,
-    coordenadas,
-    fechaCreacion: Date.now(),
-  });
+router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
+    const { nombreRuta, paradas, coordenadas } = req.body;
+    const ruta = new RutaSchema({
+        nombreRuta,
+        paradas,
+        coordenadas,
+        fechaCreacion: Date.now(),
+    });
 
-  try {
-    await ruta.save();
-    res.status(201).json({ message: "Ruta agregada con éxito", ruta });
-  } catch (error) {
-    res.status(500).json({ message: "Error al agregar la ruta", error });
-  }
+    try {
+        await ruta.save();
+        res.status(201).json({ message: "Ruta agregada con éxito", ruta });
+    } catch (error) {
+        res.status(500).json({ message: "Error al agregar la ruta", error });
+    }
 });
 
 
@@ -217,17 +217,17 @@ router.post("/add", verificarRol(["Administrador"]), async (req, res) => {
  */
 
 
-router.get("/all", verificarRol(["Administrador"]), async (req, res) => {
-  try {
-    const everyRoute = await RutaSchema.find();
-    if (everyRoute.length === 0) {
-      return res.status(404).json({ message: "No hay rutas disponibles." });
+router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const everyRoute = await RutaSchema.find();
+        if (everyRoute.length === 0) {
+            return res.status(404).json({ message: "No hay rutas disponibles." });
+        }
+        res.status(200).json(everyRoute);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Hubo un error en el servidor", error });
     }
-    res.status(200).json(everyRoute);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Hubo un error en el servidor", error });
-  }
 });
 
 
@@ -320,21 +320,21 @@ router.get("/all", verificarRol(["Administrador"]), async (req, res) => {
 
 
 
-router.get("/get/:id", verificarRol(["Administrador"]), async (req, res) => {
+router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
     try {
-      const id = req.params.id;
-      const RouteId = await RutaSchema.findById(id);
+        const id = req.params.id;
+        const RouteId = await RutaSchema.findById(id);
 
-      if (!RouteId) {
-        return res.status(404).json({ message: "La Id proporcionada es inexistente" });
-      }
-      res.status(200).json({ message: "Ruta encontrada", route: RouteId });
+        if (!RouteId) {
+            return res.status(404).json({ message: "La Id proporcionada es inexistente" });
+        }
+        res.status(200).json({ message: "Ruta encontrada", route: RouteId });
 
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Error en el servidor", error: error.message });
+        console.error(error);
+        res.status(500).json({ message: "Error en el servidor", error: error.message });
     }
-  });
+});
 
 /**
  * @swagger
@@ -462,39 +462,39 @@ router.get("/get/:id", verificarRol(["Administrador"]), async (req, res) => {
  *                   example: "Error al actualizar en la base de datos"
  */
 
-  
 
-router.put("/update/:id", verificarRol(["Administrador"]), async (req, res) => {
-  try {
-    const routeId = req.params.id;
-    const { nombreRuta, paradas, coordenadas } = req.body;
 
-    const selectedRoute = await RutaSchema.findById(routeId);
-    if (!selectedRoute) {
-      return res.status(404).json({ message: "Ruta no encontrada" });
+router.put("/update/:id", verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const routeId = req.params.id;
+        const { nombreRuta, paradas, coordenadas } = req.body;
+
+        const selectedRoute = await RutaSchema.findById(routeId);
+        if (!selectedRoute) {
+            return res.status(404).json({ message: "Ruta no encontrada" });
+        }
+
+        const fieldsToUpdate = { nombreRuta, paradas, coordenadas };
+        const newValues = {};
+
+        Object.entries(fieldsToUpdate).forEach(([key, value]) => {
+            if (value !== undefined) {
+                newValues[key] = value;
+            }
+        });
+
+        if (Object.keys(newValues).length === 0) {
+            return res.status(400).json({ message: "No se proporcionaron valores para actualizar" });
+        }
+
+        const updatedRoute = await RutaSchema.findByIdAndUpdate(routeId, newValues, { new: true });
+        res.status(200).json({
+            message: "Ruta actualizada con éxito",
+            updatedRoute,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Error en el servidor", error });
     }
-
-    const fieldsToUpdate = { nombreRuta, paradas, coordenadas };
-    const newValues = {};
-
-    Object.entries(fieldsToUpdate).forEach(([key, value]) => {
-      if (value !== undefined) {
-        newValues[key] = value;
-      }
-    });
-
-    if (Object.keys(newValues).length === 0) {
-      return res.status(400).json({ message: "No se proporcionaron valores para actualizar" });
-    }
-
-    const updatedRoute = await RutaSchema.findByIdAndUpdate(routeId, newValues, { new: true });
-    res.status(200).json({
-      message: "Ruta actualizada con éxito",
-      updatedRoute,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
-  }
 });
 
 /**
@@ -583,20 +583,20 @@ router.put("/update/:id", verificarRol(["Administrador"]), async (req, res) => {
  *                   example: "Error al eliminar la ruta de la base de datos"
  */
 
-router.delete("/delete/:id", verificarRol(["Administrador"]), async (req, res) => {
-  try {
-    const id = req.params.id;
+router.delete("/delete/:id", verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const id = req.params.id;
 
-    const deletedRoute = await RutaSchema.findByIdAndDelete(id);
+        const deletedRoute = await RutaSchema.findByIdAndDelete(id);
 
-    if (!deletedRoute) {
-      return res.status(404).json({ message: `Ruta con ID ${id} no encontrada` });
+        if (!deletedRoute) {
+            return res.status(404).json({ message: `Ruta con ID ${id} no encontrada` });
+        }
+
+        res.status(200).json({ message: "Ruta eliminada con éxito", deletedRoute });
+    } catch (error) {
+        res.status(500).json({ message: "Error en el servidor", error });
     }
-
-    res.status(200).json({ message: "Ruta eliminada con éxito", deletedRoute });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
-  }
 });
 
 
@@ -724,36 +724,36 @@ router.delete("/delete/:id", verificarRol(["Administrador"]), async (req, res) =
  */
 
 
-router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req, res) => {
-  try {
-    const { rutaId, autobusId } = req.body;
+router.post("/asignar", verificarRol(["Operador", "Administrador"]), async(req, res) => {
+    try {
+        const { rutaId, autobusId } = req.body;
 
-    const ruta = await RutaSchema.findById(rutaId);
-    if (!ruta) {
-      return res.status(404).json({ message: "Ruta no encontrada" });
+        const ruta = await RutaSchema.findById(rutaId);
+        if (!ruta) {
+            return res.status(404).json({ message: "Ruta no encontrada" });
+        }
+
+        const autoBus = await AutoBus.findById(autobusId);
+        if (!autoBus) {
+            return res.status(404).json({ message: "Autobus inexistente" });
+        }
+
+        if (autoBus.idRuta && autoBus.idRuta.toString() === rutaId) {
+            return res.status(400).json({ message: "Este autobús ya está asignado a esta ruta" });
+        }
+
+        autoBus.idRuta = rutaId;
+        await autoBus.save();
+
+        res.status(200).json({
+            message: "Autobús asignado a la ruta correctamente",
+            ruta,
+            autoBus,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Error en el servidor", error: err });
     }
-
-    const autoBus = await AutoBus.findById(autobusId);
-    if (!autoBus) {
-      return res.status(404).json({ message: "Autobus inexistente" });
-    }
-
-    if (autoBus.idRuta && autoBus.idRuta.toString() === rutaId) {
-      return res.status(400).json({ message: "Este autobús ya está asignado a esta ruta" });
-    }
-
-    autoBus.idRuta = rutaId;
-    await autoBus.save();
-
-    res.status(200).json({
-      message: "Autobús asignado a la ruta correctamente",
-      ruta,
-      autoBus,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error en el servidor", error: err });
-  }
 });
 
 /**
@@ -850,32 +850,32 @@ router.post("/asignar", verificarRol(["Operador", "Administrador"]), async (req,
  *                   type: string
  *                   example: "Error al guardar en la base de datos"
  */
-router.post("/autoBus/add", verificarRol(["Operador", "Administrador"]), async (req, res) => {
-  try {
-      const { placa, modelo, capacidad, estado, ubicacionActual, idRuta } = req.body;
+router.post("/autoBus/add", verificarRol(["Operador", "Administrador"]), async(req, res) => {
+    try {
+        const { placa, modelo, capacidad, estado, ubicacionActual, idRuta } = req.body;
 
-      if (!placa || !modelo || !capacidad || !estado) {
-          return res.status(400).json({ message: "Faltan campos requeridos" });
-      }
+        if (!placa || !modelo || !capacidad || !estado) {
+            return res.status(400).json({ message: "Faltan campos requeridos" });
+        }
 
-      const nuevoAutobus = new AutoBus({
-          placa,
-          modelo,
-          capacidad,
-          estado,
-          ubicacionActual: ubicacionActual || '',
-          idRuta: idRuta || null, 
-          fechaCreacion: Date.now()
-      });
+        const nuevoAutobus = new AutoBus({
+            placa,
+            modelo,
+            capacidad,
+            estado,
+            ubicacionActual: ubicacionActual || '',
+            idRuta: idRuta || null,
+            fechaCreacion: Date.now()
+        });
 
-      await nuevoAutobus.save();
+        await nuevoAutobus.save();
 
-      res.status(201).json({ message: "Autobús agregado con éxito", autobus: nuevoAutobus });
+        res.status(201).json({ message: "Autobús agregado con éxito", autobus: nuevoAutobus });
 
-  } catch (error) {
-      console.error("Error al agregar el autobús:", error);
-      res.status(500).json({ message: "Error al agregar el autobús", error: error.message });
-  }
+    } catch (error) {
+        console.error("Error al agregar el autobús:", error);
+        res.status(500).json({ message: "Error al agregar el autobús", error: error.message });
+    }
 });
 
 

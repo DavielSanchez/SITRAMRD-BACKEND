@@ -18,9 +18,13 @@ mongoConnection(process.env.MONGODB_URI)
 
 // app.use(cors());
 app.use(cors({
-    origin: ['*'],
+    // origin: "http://localhost:5173",
+    origin: "*",
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'], // Agregar Authorization aquí
+    credentials: true
 }));
+app.use('/wallet/webhook-stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 /**
  * @swagger
