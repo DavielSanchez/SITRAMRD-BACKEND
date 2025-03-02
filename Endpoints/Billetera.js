@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
 const Stripe = require('stripe')
+const bodyParser = require("body-parser");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
-
-const app = express();
-app.use(express.json());
+const stripe_webhook_secret = process.env.STRIPE_WEBHOOK_SECRET
 
 const userSchema = require('../models/Usuario');
 const tarjetasVirtualesSchema = require('../models/tarjetasVirtuales');
@@ -507,12 +506,24 @@ router.get('/pagos/user/:userId', (req, res) => {
         });
 });
 
+router.get("/metodos-pago/:userId", async(req, res) => {
+    try {
+        const usuario = await userSchema.findById(req.params.userId);
+        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+        res.json({ metodosPago: usuario.metodosPago });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error al consultar los métodos de pago" });
+    }
+});
+
 /**
  * @swagger
  * /wallet/create-payment-intent:
  *   post:
- *     summary: Crear un Intento de Pago con Stripe
- *     description: Genera un Payment Intent en Stripe y devuelve el clientSecret necesario para procesar el pago.
+ *     summary: Recargar saldo en la tarjeta virtual
+ *     description: Recarga saldo en la tarjeta virtual del usuario mediante Stripe. Se crea un PaymentIntent y se devuelve un `clientSecret` que se utilizará para confirmar el pago desde el frontend.
  *     tags:
  *       - Billetera
  *     requestBody:
@@ -522,17 +533,21 @@ router.get('/pagos/user/:userId', (req, res) => {
  *           schema:
  *             type: object
  *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID del usuario que realiza la recarga.
+ *               tarjetaId:
+ *                 type: string
+ *                 description: ID de la tarjeta virtual donde se recargará el saldo.
  *               amount:
- *                 type: integer
- *                 description: Monto del pago en la menor unidad de la moneda (por ejemplo, centavos para USD).
- *                 example: 5000
+ *                 type: number
+ *                 description: Monto a recargar en la tarjeta virtual, expresado en unidades de la moneda (por ejemplo, 50 para $50).
  *               currency:
  *                 type: string
- *                 description: Código de la moneda en formato ISO 4217.
- *                 example: "usd"
+ *                 description: La moneda en la que se realizará el pago (por ejemplo, "usd").
  *     responses:
  *       200:
- *         description: Client Secret generado exitosamente.
+ *         description: PaymentIntent creado exitosamente. El `clientSecret` se proporciona para confirmar el pago.
  *         content:
  *           application/json:
  *             schema:
@@ -542,34 +557,289 @@ router.get('/pagos/user/:userId', (req, res) => {
  *                   type: string
  *                   description: Client Secret para confirmar el pago en el frontend.
  *                   example: "pi_1234567890_secret_abcdefghij"
+ *                 saldoActual:
+ *                   type: number
+ *                   description: El saldo actual de la tarjeta virtual después de la transacción.
+ *                   example: 100
+ *                 estado:
+ *                   type: string
+ *                   description: El estado de la transacción (por ejemplo, "Pendiente").
+ *                   example: "Pendiente"
  *       400:
  *         description: Parámetros inválidos (monto o moneda faltante).
+ *       404:
+ *         description: La tarjeta virtual especificada no fue encontrada.
  *       500:
  *         description: Error interno del servidor.
  */
 router.post("/create-payment-intent", async(req, res) => {
     try {
-        const { amount, currency } = req.body;
+        const { userId, tarjetaId, amount, currency } = req.body;
 
-        if (!amount || !currency) {
-            return res.status(400).json({ error: "Monto y moneda son requeridos" });
+        if (!userId || !amount || !currency) {
+            return res.status(400).json({ error: "Todos los campos son requeridos" });
         }
 
+        // Crear el PaymentIntent en Stripe
         const paymentIntent = await stripe.paymentIntents.create({
-            amount,
+            amount: amount * 100, // Convertir el monto a centavos
             currency,
+            automatic_payment_methods: { enabled: true },
         });
 
-        console.log("PaymentIntent creado:", paymentIntent); // 🔍 Debug
-
         if (!paymentIntent.client_secret) {
-            throw new Error("Stripe no generó un client_secret");
+            return res.status(500).json({ error: "Stripe no generó un client_secret" });
         }
 
-        res.json({ clientSecret: paymentIntent.client_secret });
+        // Buscar la tarjeta virtual del usuario
+        let tarjeta = await tarjetasVirtualesSchema.findOne({ _id: tarjetaId });
+        if (!tarjeta) {
+            return res.status(404).json({ error: "Tarjeta virtual no encontrada" });
+        }
+
+        // Registrar la transacción como pendiente por ahora
+        const transaccion = new tarjetaTransaccionesSchema({
+            idUsuario: userId,
+            tarjetaVirtual: tarjeta._id,
+            tipo: "Recarga",
+            monto: amount,
+            estado: "Pendiente", // Inicialmente, la transacción está pendiente
+        });
+        await transaccion.save();
+
+        res.json({
+            success: true,
+            saldoActual: tarjeta.saldo,
+            clientSecret: paymentIntent.client_secret,
+            estado: "Pendiente", // Inicialmente, el estado es pendiente
+        });
     } catch (error) {
-        console.error("Error en create-payment-intent:", error);
-        res.status(500).json({ error: "Error interno en el servidor" });
+        console.error("Error en recarga:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+});
+
+/**
+ * @swagger
+ * /wallet/webhook-stripe:
+ *   post:
+ *     summary: Maneja eventos de webhook de Stripe
+ *     description: Recibe y procesa los eventos de Stripe para actualizar el estado de las transacciones y el saldo de las tarjetas virtuales.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               stripeSignature:
+ *                 type: string
+ *                 description: La firma de Stripe que se usa para verificar que la solicitud proviene de Stripe.
+ *     responses:
+ *       200:
+ *         description: Evento procesado exitosamente. La transacción se marca como completada y el saldo de la tarjeta virtual se actualiza.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indica si el procesamiento fue exitoso.
+ *                   example: true
+ *                 transaccion:
+ *                   type: object
+ *                   description: La transacción actualizada con estado "Completado".
+ *                   properties:
+ *                     estado:
+ *                       type: string
+ *                       description: Estado de la transacción.
+ *                       example: "Completado"
+ *                     monto:
+ *                       type: number
+ *                       description: Monto de la transacción procesada.
+ *                       example: 50
+ *       400:
+ *         description: Error al verificar la firma de Stripe o evento no manejado.
+ *       404:
+ *         description: No se encontró una transacción pendiente con el monto correspondiente.
+ *       500:
+ *         description: Error interno del servidor al actualizar la transacción.
+ */
+router.post('/webhook-stripe', express.raw({ type: 'application/json' }), async(req, res) => {
+    console.log('Webhook recibido');
+    const sig = req.headers['stripe-signature'];
+
+    console.log('Tipo de body:', typeof req.body);
+    console.log('Cuerpo:', req.body);
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, stripe_webhook_secret);
+    } catch (err) {
+        console.error('⚠️  Error verificando webhook:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+        const amount = paymentIntent.amount / 100;
+
+        console.log('✅ Pago confirmado para:', paymentIntent.id);
+
+        try {
+            const transaccion = await tarjetaTransaccionesSchema.findOneAndUpdate({ estado: 'Pendiente', monto: amount }, { estado: 'Completado' }, { new: true });
+
+            if (!transaccion) {
+                console.warn('⚠️ No se encontró una transacción pendiente.');
+                return res.status(404).json({ error: 'No se encontró transacción pendiente' });
+            }
+
+            const tarjeta = await tarjetasVirtualesSchema.findById(transaccion.tarjetaVirtual);
+            if (tarjeta) {
+                tarjeta.saldo += amount;
+                await tarjeta.save();
+            }
+
+            console.log('✅ Transacción actualizada a Completado:', transaccion);
+            res.json({ success: true, transaccion });
+        } catch (error) {
+            console.error('❌ Error al actualizar la transacción:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    } else {
+        console.log(`ℹ️ Evento no manejado: ${event.type}`);
+        res.status(400).end();
+    }
+});
+
+/**
+ * @swagger
+ * /wallet/guardar-metodo-pago:
+ *   post:
+ *     summary: Guarda un método de pago para un usuario
+ *     description: Asocia un nuevo método de pago a un usuario y lo establece como el método de pago predeterminado en Stripe.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID del usuario que está agregando el método de pago.
+ *               paymentMethodId:
+ *                 type: string
+ *                 description: ID del método de pago que se va a guardar.
+ *     responses:
+ *       200:
+ *         description: El método de pago se guardó exitosamente y se asignó como predeterminado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   description: Mensaje que indica el éxito de la operación.
+ *                   example: "Método de pago guardado exitosamente"
+ *       400:
+ *         description: Parámetros faltantes o inválidos en la solicitud.
+ *       404:
+ *         description: No se encontró el usuario con el ID proporcionado.
+ *       500:
+ *         description: Error interno del servidor al guardar el método de pago.
+ */
+router.post("/guardar-metodo-pago", async(req, res) => {
+    try {
+        const { userId, paymentMethodId } = req.body;
+
+        const usuario = await userSchema.findById(userId);
+        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+        await stripe.customers.update(usuario.customerId, {
+            invoice_settings: { default_payment_method: paymentMethodId },
+        });
+
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+
+        usuario.metodosPago.push({
+            paymentMethodId,
+            cardType: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+            expMonth: paymentMethod.card.exp_month,
+            expYear: paymentMethod.card.exp_year,
+            brand: paymentMethod.card.brand,
+        });
+
+        await usuario.save();
+
+        res.json({ mensaje: "Método de pago guardado exitosamente" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error al guardar el método de pago" });
+    }
+});
+
+
+/**
+ * @swagger
+ * /wallet/pagar:
+ *   post:
+ *     summary: Pagar un viaje en autobús/metro
+ *     description: Descuenta saldo de la tarjeta virtual del usuario y registra la transacción.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Pago exitoso.
+ */
+router.post("/pagar", async(req, res) => {
+    try {
+        const { userId, amount } = req.body;
+
+        if (!userId || !amount) {
+            return res.status(400).json({ error: "Usuario y monto son requeridos" });
+        }
+
+        let tarjeta = await tarjetasVirtualesSchema.findOne({ idUsuario: userId });
+        if (!tarjeta || tarjeta.saldo < amount) {
+            return res.status(400).json({ error: "Saldo insuficiente" });
+        }
+
+        tarjeta.saldo -= amount;
+        await tarjeta.save();
+
+        const transaccion = new tarjetaTransaccionesSchema({
+            idUsuario: userId,
+            tarjetaVirtual: tarjeta._id,
+            tipo: "Pago",
+            monto: amount,
+            estado: "Completado",
+        });
+        await transaccion.save();
+
+        res.json({ success: true, saldoActual: tarjeta.saldo });
+    } catch (error) {
+        console.error("Error en pago:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
     }
 });
 
@@ -784,10 +1054,41 @@ router.post('/tarjetas/fisicas/add', async(req, res) => {
 });
 
 
+router.put('/tarjetas/virtual/:id', async(req, res) => {
 
+})
 
+router.put('/tarjetas/fisica/:id', async(req, res) => {
 
+})
 
+router.delete("/eliminar-metodo-pago", async(req, res) => {
+    try {
+        const { userId, paymentMethodId } = req.body;
 
+        const usuario = await userSchema.findById(userId);
+        if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+
+        usuario.metodosPago = usuario.metodosPago.filter(
+            (metodo) => metodo.paymentMethodId !== paymentMethodId
+        );
+        await usuario.save();
+
+        await stripe.paymentMethods.detach(paymentMethodId);
+
+        res.json({ mensaje: "Método de pago eliminado exitosamente" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error al eliminar el método de pago" });
+    }
+});
+
+router.delete('/tarjeta/virtual/:id', async(req, res) => {
+
+})
+
+router.delete('/tarjeta/fisica/:id', async(req, res) => {
+
+})
 
 module.exports = router;

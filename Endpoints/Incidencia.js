@@ -89,9 +89,7 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
-
-
-router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]), async (req, res) => {
+router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
     try {
         const { descripcion, idAutoBus } = req.body;
 
@@ -102,12 +100,12 @@ router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]),
         const idUsuario = req.user.id;
 
         const incidencia = new IncidenciaSchema({
-          descripcion: descripcion,
-          idAutoBus: idAutoBus,
-          idUsuario: idUsuario,
-          estado: 'Pendiente',
-      });
-      
+            descripcion: descripcion,
+            idAutoBus: idAutoBus,
+            idUsuario: idUsuario,
+            estado: 'Pendiente',
+        });
+
 
         await incidencia.save();
 
@@ -209,32 +207,30 @@ router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]),
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
+router.put('/estado/:id', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
 
+        if (!estado) {
+            return res.status(400).json({ message: 'Falta el parámetro "estado".' });
+        }
 
-router.put('/estado/:id', verificarToken, verificarRol(["Operador", "Administrador"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { estado } = req.body;
+        const incidencia = await IncidenciaSchema.findById(id);
 
-    if (!estado) {
-        return res.status(400).json({ message: 'Falta el parámetro "estado".' });
+        if (!incidencia) {
+            return res.status(404).json({ message: 'Incidencia no encontrada.' });
+        }
+
+        incidencia.estado = estado;
+
+        await incidencia.save();
+
+        res.status(200).json({ message: "Estado de la incidencia actualizado correctamente", incidencia });
+
+    } catch (err) {
+        res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
-
-    const incidencia = await IncidenciaSchema.findById(id);
-
-    if (!incidencia) {
-        return res.status(404).json({ message: 'Incidencia no encontrada.' });
-    }
-
-    incidencia.estado = estado; 
-
-    await incidencia.save();
-
-    res.status(200).json({ message: "Estado de la incidencia actualizado correctamente", incidencia });
-
-  } catch (err) {
-    res.status(500).json({ message: "Hubo un error en el servidor", err });
-  }
 });
 
 /**
@@ -287,28 +283,23 @@ router.put('/estado/:id', verificarToken, verificarRol(["Operador", "Administrad
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
+router.delete('/:id', async(req, res) => {
+    try {
+        const { id } = req.params;
 
+        // Buscar y eliminar la incidencia
+        const incidencia = await IncidenciaSchema.findByIdAndDelete(id);
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+        if (!incidencia) {
+            return res.status(404).json({ message: 'Incidencia no encontrada.' });
+        }
 
-    // Buscar y eliminar la incidencia
-    const incidencia = await IncidenciaSchema.findByIdAndDelete(id);
+        res.status(200).json({ message: "Incidencia eliminada correctamente" });
 
-    if (!incidencia) {
-      return res.status(404).json({ message: 'Incidencia no encontrada.' });
+    } catch (err) {
+        res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
-
-    res.status(200).json({ message: "Incidencia eliminada correctamente" });
-    
-  } catch (err) {
-    res.status(500).json({ message: "Hubo un error en el servidor", err });
-  }
 });
-
-
-
 
 /**
  * @swagger
@@ -387,14 +378,12 @@ router.delete('/:id', async (req, res) => {
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
-
-
-router.get('/all', async (req, res) => {
+router.get('/all', async(req, res) => {
     try {
         const incidencias = await IncidenciaSchema.find()
             .populate('idUsuario', 'nombre correo')
-            .populate('idAutoBus', 'placa') 
-            .sort({ fechaDeReporte: -1 }); 
+            .populate('idAutoBus', 'placa')
+            .sort({ fechaDeReporte: -1 });
         res.status(200).json({ incidencias });
     } catch (err) {
         res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });
@@ -505,26 +494,24 @@ router.get('/all', async (req, res) => {
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
+router.get('/reporte', verificarToken, verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const { fechaInicio, fechaFin, estado } = req.query;
 
+        const query = {};
+        if (fechaInicio) query.fechaDeReporte = { $gte: new Date(fechaInicio) };
+        if (fechaFin) query.fechaDeReporte = { $lte: new Date(fechaFin) };
+        if (estado) query.estado = estado;
 
-router.get('/reporte', verificarToken, verificarRol(["Administrador"]), async (req, res) => {
-  try {
-      const { fechaInicio, fechaFin, estado } = req.query;
+        const incidencias = await IncidenciaSchema.find(query)
+            .populate('idUsuario', 'nombre correo')
+            .populate('idAutobus', 'placa'); // Cambiado de idRuta a idAutobus
 
-      const query = {};
-      if (fechaInicio) query.fechaDeReporte = { $gte: new Date(fechaInicio) }; 
-      if (fechaFin) query.fechaDeReporte = { $lte: new Date(fechaFin) };
-      if (estado) query.estado = estado; 
+        res.status(200).json({ incidencias });
 
-      const incidencias = await IncidenciaSchema.find(query)
-          .populate('idUsuario', 'nombre correo')
-          .populate('idAutobus', 'placa');  // Cambiado de idRuta a idAutobus
-
-      res.status(200).json({ incidencias });
-
-  } catch (err) {
-      res.status(500).json({ message: 'Hubo un error al generar el reporte', err });
-  }
+    } catch (err) {
+        res.status(500).json({ message: 'Hubo un error al generar el reporte', err });
+    }
 });
 
 module.exports = router;

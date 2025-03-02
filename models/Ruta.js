@@ -1,16 +1,39 @@
 const { Schema, model } = require("mongoose");
 
-//PSDT: Cambie un poco los campos para almacenar las coordenadas de cada parada para poder calcular mejor la distancia entre cada paradas y ver si asi se facilita a la hora del mapa.
-
 const rutaSchema = new Schema({
-  nombreRuta: { type: String, required: true },
-  paradas: [
-    {
-      nombre: { type: String, required: true },
-      coordenadas: { type: [Number], required: true },
+    nombreRuta: { type: String, required: true },
+
+    coordenadas: {
+        type: {
+            type: String,
+            enum: ["LineString"],
+            default: "LineString",
+        },
+        coordinates: {
+            type: [
+                [Number]
+            ],
+            required: true,
+        },
     },
-  ],
-  fechaCreacion: { type: Date, default: Date.now },
+
+    paradas: [{
+        nombre: { type: String, required: true },
+        ubicacion: {
+            type: {
+                type: String,
+                enum: ["Point"],
+                default: "Point",
+            },
+            coordinates: { type: [Number], required: true },
+        },
+    }, ],
+
+    Tarifa: { type: Number, required: true },
+
+    fechaCreacion: { type: Date, default: Date.now },
 });
+
+rutaSchema.index({ "paradas.ubicacion": "2dsphere" });
 
 module.exports = model("Ruta", rutaSchema);

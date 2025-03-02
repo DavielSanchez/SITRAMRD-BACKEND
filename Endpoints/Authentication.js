@@ -3,11 +3,14 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const sendResetEmail = require("../emailService");
+const Stripe = require('stripe')
+
 
 const app = express();
 app.use(express.json());
 
 const SECRET_KEY = process.env.JWT_SECRET || 'miClaveSecreta';
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
 
 const userSchema = require('../models/Usuario');
 
@@ -238,6 +241,8 @@ router.post('/users/add', async(req, res) => {
             return res.status(400).json({ message: 'El usuario ya existe' });
         }
 
+        const clienteStripe = await stripe.customers.create({ name: nombre, email: correo });
+
         const newUser = new userSchema({
             nombre,
             correo: correo.toLowerCase(),
@@ -245,6 +250,7 @@ router.post('/users/add', async(req, res) => {
             userRol: "Pasajero",
             userImage,
             estadoUsuario: "activo",
+            customerId: clienteStripe.id,
             tema: "light",
             lastLogin: new Date(),
         });
@@ -259,6 +265,7 @@ router.post('/users/add', async(req, res) => {
             userImage: newUser.userImage,
             theme: newUser.tema,
             estadoUsuario: newUser.estadoUsuario,
+            customerId: newUser.customerId,
             lastLogin: newUser.lastLogin,
         };
 
@@ -272,6 +279,7 @@ router.post('/users/add', async(req, res) => {
                 nombre: newUser.nombre,
                 correo: newUser.correo,
                 userRol: newUser.userRol,
+                customerId: newUser.customerId,
                 theme: newUser.tema,
             }
         });
@@ -353,6 +361,7 @@ router.post('/login', async(req, res) => {
             nombre: user.nombre,
             correo: user.correo,
             userRol: user.userRol,
+            userImage: user.userImage,
             estadoUsuario: user.estadoUsuario,
             theme: user.tema,
             lastLogin: user.lastLogin
