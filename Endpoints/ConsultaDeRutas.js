@@ -457,7 +457,7 @@ router.get("/autobuses/:id", async (req, res) => {
     try {
         const routeId = req.params.id;
 
-        const autobuses = await Autobus.find({ idRuta: routeId });
+        const autobuses = await AutoBus.find({ idRuta: routeId });
 
         if (!autobuses || autobuses.length === 0) {
             return res.status(404).json({ message: `Ruta con ID ${routeId} no encontrada o sin autobuses asignados` });
