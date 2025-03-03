@@ -11,6 +11,7 @@ const Billetera = require('./Endpoints/Billetera')
 const Ruta = require('./Endpoints/Ruta')
 const Incidencia = require('./Endpoints/Incidencia')
 const Usuarios = require('./Endpoints/Usuario')
+const ConsultaDeRutas = require('./Endpoints/ConsultaDeRutas')
 
 mongoConnection(process.env.MONGODB_URI)
 
@@ -38,6 +39,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 app.use('/auth', Authentication)
 app.use('/wallet', Billetera)
 app.use('/ruta', Ruta)
+app.use('/ruta', ConsultaDeRutas)
 app.use('/usuario', Usuarios)
 app.use('/incidencia', Incidencia)
 

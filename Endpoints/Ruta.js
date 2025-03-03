@@ -10,8 +10,9 @@ const verificarRol = require("../middleware/verificarRol");
  * /ruta/add:
  *   post:
  *     summary: Crear una nueva ruta
- *     description: Crea una ruta con las paradas y coordenadas proporcionadas.
- *     tags: [Ruta]
+ *     description: Crea una nueva ruta con el nombre, las coordenadas de la ruta, las paradas y la tarifa proporcionadas.
+ *     tags:
+ *       - "Ruta"
  *     requestBody:
  *       required: true
  *       content:
@@ -22,6 +23,20 @@ const verificarRol = require("../middleware/verificarRol");
  *               nombreRuta:
  *                 type: string
  *                 example: "Ruta 1"
+ *               coordenadas:
+ *                 type: object
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     example: "LineString"
+ *                   coordinates:
+ *                     type: array
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: number
+ *                       example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]
+ *                 description: Coordenadas de la ruta, representada como un "LineString"
  *               paradas:
  *                 type: array
  *                 items:
@@ -30,105 +45,50 @@ const verificarRol = require("../middleware/verificarRol");
  *                     nombre:
  *                       type: string
  *                       example: "Parada 1"
- *                     coordenadas:
- *                       type: array
- *                       items:
- *                         type: number
- *                       example: [19.432608, -99.133209]  # Coordenadas de latitud y longitud
- *                 example:
- *                   - nombre: "Parada 1"
- *                     coordenadas: [19.432608, -99.133209]
- *                   - nombre: "Parada 2"
- *                     coordenadas: [19.434123, -99.134567]
- *                   - nombre: "Parada 3"
- *                     coordenadas: [19.435678, -99.135678]
- *             required:
- *               - nombreRuta
- *               - paradas
- *     responses:
- *       201:
- *         description: Ruta agregada correctamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Ruta agregada con éxito"
- *                 ruta:
- *                   type: object
- *                   properties:
- *                     nombreRuta:
- *                       type: string
- *                       example: "Ruta 1"
- *                     paradas:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           nombre:
- *                             type: string
- *                             example: "Parada 1"
- *                           coordenadas:
- *                             type: array
- *                             items:
- *                               type: number
- *                             example: [19.432608, -99.133209]
- *                       example:
- *                         - nombre: "Parada 1"
- *                           coordenadas: [19.432608, -99.133209]
- *                         - nombre: "Parada 2"
- *                           coordenadas: [19.434123, -99.134567]
- *                         - nombre: "Parada 3"
- *                           coordenadas: [19.435678, -99.135678]
- *                     fechaCreacion:
- *                       type: string
- *                       format: date-time
- *                       example: "2025-02-19T14:23:47.000Z"
- *       400:
- *         description: Datos inválidos
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Faltan campos requeridos o datos inválidos"
- *       500:
- *         description: Error en el servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Error al agregar la ruta"
- *                 error:
- *                   type: string
- *                   example: "Error al guardar en la base de datos"
- */
+ *                     ubicacion:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           example: "Point"
+ *                         coordinates:
+ *                           type: array
+ *                           items:
+ *                             type: numb
+*/
 
 
 
-router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
-    const { nombreRuta, paradas, coordenadas } = req.body;
-    const ruta = new RutaSchema({
-        nombreRuta,
-        paradas,
-        coordenadas,
-        fechaCreacion: Date.now(),
-    });
-
+router.post('/add', verificarRol(["Administrador"]), async (req, res) => {
     try {
+        const { nombreRuta, coordenadas, paradas, Tarifa } = req.body;
+        console.log(nombreRuta, coordenadas, paradas, Tarifa);
+
+        // Validación de parámetros requeridos
+        if (!nombreRuta || !coordenadas || !paradas || Tarifa === undefined) {
+            return res.status(400).json({ 
+                message: `Faltan parámetros requeridos: nombreRuta, coordenadas, paradas o tarifa: ${nombreRuta} ${JSON.stringify(coordenadas)} ${JSON.stringify(paradas)} ${Tarifa}`,
+            });
+        }        
+
+        const ruta = new RutaSchema({
+            nombreRuta,
+            coordenadas,
+            paradas,
+            Tarifa: Tarifa,
+            fechaCreacion: Date.now(),
+        });
+
         await ruta.save();
+
         res.status(201).json({ message: "Ruta agregada con éxito", ruta });
-    } catch (error) {
-        res.status(500).json({ message: "Error al agregar la ruta", error });
+
+    } catch (err) {
+        res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
 });
+
+
 
 
 /**
@@ -137,7 +97,7 @@ router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
  *   get:
  *     summary: Obtener todas las rutas
  *     description: Devuelve una lista de todas las rutas registradas en el sistema, con detalles como nombre de la ruta, paradas, coordenadas y fecha de creación.
- *     tags: [Ruta]
+ *     tags: [Ruta] 
  *     responses:
  *       200:
  *         description: Lista de rutas encontradas
@@ -156,6 +116,20 @@ router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
  *                     type: string
  *                     description: Nombre de la ruta
  *                     example: "Ruta 2"
+ *                   coordenadas:
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                         example: "LineString"
+ *                       coordinates:
+ *                         type: array
+ *                         items:
+ *                           type: array
+ *                           items:
+ *                             type: number
+ *                           example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]
+ *                     description: Coordenadas de la ruta, representada como un "LineString"
  *                   paradas:
  *                     type: array
  *                     items:
@@ -169,23 +143,33 @@ router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
  *                           type: string
  *                           description: Nombre de la parada
  *                           example: "Parada 1"
- *                         coordenadas:
- *                           type: array
- *                           items:
- *                             type: number
- *                           description: Coordenadas de la parada (latitud y longitud)
- *                           example: [19.432608, -99.133209]
- *                     description: Lista de paradas en la ruta con sus coordenadas
+ *                         ubicacion:
+ *                           type: object
+ *                           properties:
+ *                             type:
+ *                               type: string
+ *                               example: "Point"
+ *                             coordinates:
+ *                               type: array
+ *                               items:
+ *                                 type: number
+ *                               example: [-74.0060, 40.7128]
+ *                     description: Lista de paradas en la ruta con sus ubicaciones (coordenadas)
  *                     example:
  *                       - _id: "67b58676a4da6e4181c9dbfc"
  *                         nombre: "Parada 1"
- *                         coordenadas: [19.432608, -99.133209]
+ *                         ubicacion: 
+ *                           type: "Point"
+ *                           coordinates: [-74.0060, 40.7128]
  *                       - _id: "67b58676a4da6e4181c9dbfd"
  *                         nombre: "Parada 2"
- *                         coordenadas: [19.434123, -99.134567]
- *                       - _id: "67b58676a4da6e4181c9dbfe"
- *                         nombre: "Parada 3"
- *                         coordenadas: [19.435678, -99.13589]
+ *                         ubicacion: 
+ *                           type: "Point"
+ *                           coordinates: [-74.0065, 40.7135]
+ *                   Tarifa:
+ *                     type: number
+ *                     description: Tarifa de la ruta
+ *                     example: 20
  *                   fechaCreacion:
  *                     type: string
  *                     format: date-time
@@ -269,6 +253,20 @@ router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
  *                       type: string
  *                       description: Nombre de la ruta
  *                       example: "Ruta 2"
+ *                     coordenadas:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           example: "LineString"
+ *                         coordinates:
+ *                           type: array
+ *                           items:
+ *                             type: array
+ *                             items:
+ *                               type: number
+ *                             example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]
+ *                       description: Coordenadas de la ruta, representada como un "LineString"
  *                     paradas:
  *                       type: array
  *                       items:
@@ -282,12 +280,33 @@ router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
  *                             type: string
  *                             description: Nombre de la parada
  *                             example: "Parada 1"
- *                           coordenadas:
- *                             type: array
- *                             items:
- *                               type: number
- *                             description: Coordenadas de la parada (latitud y longitud)
- *                             example: [19.432608, -99.133209]
+ *                           ubicacion:
+ *                             type: object
+ *                             properties:
+ *                               type:
+ *                                 type: string
+ *                                 example: "Point"
+ *                               coordinates:
+ *                                 type: array
+ *                                 items:
+ *                                   type: number
+ *                                 example: [-74.0060, 40.7128]
+ *                       description: Lista de paradas en la ruta con sus ubicaciones (coordenadas)
+ *                       example:
+ *                         - _id: "67b58676a4da6e4181c9dbfc"
+ *                           nombre: "Parada 1"
+ *                           ubicacion: 
+ *                             type: "Point"
+ *                             coordinates: [-74.0060, 40.7128]
+ *                         - _id: "67b58676a4da6e4181c9dbfd"
+ *                           nombre: "Parada 2"
+ *                           ubicacion: 
+ *                             type: "Point"
+ *                             coordinates: [-74.0065, 40.7135]
+ *                     Tarifa:
+ *                       type: number
+ *                       description: Tarifa de la ruta
+ *                       example: 20
  *                     fechaCreacion:
  *                       type: string
  *                       format: date-time
@@ -320,6 +339,7 @@ router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
 
 
 
+
 router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
     try {
         const id = req.params.id;
@@ -335,6 +355,8 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
         res.status(500).json({ message: "Error en el servidor", error: error.message });
     }
 });
+
+
 
 /**
  * @swagger
@@ -369,18 +391,27 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                     nombre:
  *                       type: string
  *                       example: "Parada 1"
- *                     coordenadas:
- *                       type: array
- *                       items:
- *                         type: number
- *                         example: [19.432608, -99.133209]  # Coordenadas de la parada
+ *                     ubicacion:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           example: "Point"
+ *                         coordinates:
+ *                           type: array
+ *                           items:
+ *                             type: number
+ *                             example: [-74.0060, 40.7128]  # Coordenadas de la parada
  *               coordenadas:
  *                 type: array
  *                 items:
  *                   type: array
  *                   items:
  *                     type: number
- *                   example: [[19.432608, -99.133209], [19.434123, -99.134567]]  # Coordenadas de la ruta
+ *                   example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]  # Coordenadas de la ruta
+ *               Tarifa:
+ *                 type: number
+ *                 example: 25  # Nueva tarifa
  *     responses:
  *       200:
  *         description: Ruta actualizada correctamente
@@ -403,6 +434,20 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                       type: string
  *                       description: Nombre de la ruta
  *                       example: "Ruta 2"
+ *                     coordenadas:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           example: "LineString"
+ *                         coordinates:
+ *                           type: array
+ *                           items:
+ *                             type: array
+ *                             items:
+ *                               type: number
+ *                             example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]
+ *                       description: Coordenadas de la ruta, representada como un "LineString"
  *                     paradas:
  *                       type: array
  *                       items:
@@ -416,12 +461,33 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                             type: string
  *                             description: Nombre de la parada
  *                             example: "Parada 1"
- *                           coordenadas:
- *                             type: array
- *                             items:
- *                               type: number
- *                             description: Coordenadas de la parada
- *                             example: [19.432608, -99.133209]
+ *                           ubicacion:
+ *                             type: object
+ *                             properties:
+ *                               type:
+ *                                 type: string
+ *                                 example: "Point"
+ *                               coordinates:
+ *                                 type: array
+ *                                 items:
+ *                                   type: number
+ *                                 example: [-74.0060, 40.7128]
+ *                       description: Lista de paradas en la ruta con sus ubicaciones (coordenadas)
+ *                       example:
+ *                         - _id: "67b58676a4da6e4181c9dbfc"
+ *                           nombre: "Parada 1"
+ *                           ubicacion: 
+ *                             type: "Point"
+ *                             coordinates: [-74.0060, 40.7128]
+ *                         - _id: "67b58676a4da6e4181c9dbfd"
+ *                           nombre: "Parada 2"
+ *                           ubicacion: 
+ *                             type: "Point"
+ *                             coordinates: [-74.0065, 40.7135]
+ *                     Tarifa:
+ *                       type: number
+ *                       description: Tarifa de la ruta
+ *                       example: 25
  *                     fechaCreacion:
  *                       type: string
  *                       format: date-time
@@ -462,19 +528,17 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                   example: "Error al actualizar en la base de datos"
  */
 
-
-
-router.put("/update/:id", verificarRol(["Administrador"]), async(req, res) => {
+router.put("/update/:id", verificarRol(["Administrador"]), async (req, res) => {
     try {
         const routeId = req.params.id;
-        const { nombreRuta, paradas, coordenadas } = req.body;
+        const { nombreRuta, paradas, coordenadas, Tarifa } = req.body;
 
         const selectedRoute = await RutaSchema.findById(routeId);
         if (!selectedRoute) {
             return res.status(404).json({ message: "Ruta no encontrada" });
         }
 
-        const fieldsToUpdate = { nombreRuta, paradas, coordenadas };
+        const fieldsToUpdate = { nombreRuta, paradas, coordenadas, Tarifa };
         const newValues = {};
 
         Object.entries(fieldsToUpdate).forEach(([key, value]) => {
@@ -496,6 +560,7 @@ router.put("/update/:id", verificarRol(["Administrador"]), async(req, res) => {
         res.status(500).json({ message: "Error en el servidor", error });
     }
 });
+
 
 /**
  * @swagger

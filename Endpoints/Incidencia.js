@@ -89,32 +89,34 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
-router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
+router.post('/add', async (req, res) => {
     try {
-        const { descripcion, idAutoBus } = req.body;
+        const { nombreRuta, coordenadas, paradas, tarifa } = req.body;
 
-        if (!descripcion || !idAutoBus) {
-            return res.status(400).json({ message: 'Faltan parámetros requeridos: descripcion o idAutoBus' });
+        // Validación de parámetros requeridos
+        if (!nombreRuta || !coordenadas || !paradas || tarifa === undefined) {
+            return res.status(400).json({ message: 'Faltan parámetros requeridos: nombreRuta, coordenadas, paradas o tarifa' });
         }
 
-        const idUsuario = req.user.id;
-
-        const incidencia = new IncidenciaSchema({
-            descripcion: descripcion,
-            idAutoBus: idAutoBus,
-            idUsuario: idUsuario,
-            estado: 'Pendiente',
+        // Crear la ruta con la tarifa incluida
+        const ruta = new RutaSchema({
+            nombreRuta,
+            coordenadas,
+            paradas,
+            Tarifa: tarifa, // Asegurándose de incluir la tarifa
+            fechaCreacion: Date.now(),
         });
 
+        // Guardar la ruta en la base de datos
+        await ruta.save();
 
-        await incidencia.save();
-
-        res.status(201).json({ message: "Incidencia registrada correctamente", incidencia });
+        res.status(201).json({ message: "Ruta agregada con éxito", ruta });
 
     } catch (err) {
         res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
 });
+
 
 /**
  * @swagger
