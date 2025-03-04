@@ -1,17 +1,19 @@
+const express = require("express");
+const router = express.Router();
 const Autobus = require("../models/Autobus");
 
 // Listar vehículos
-const getVehicles = async (req, res) => {
+router.get("/", async (req, res) => {
     try {
         const vehiculos = await Autobus.find();
         res.json(vehiculos);
     } catch (error) {
         res.status(500).json({ message: "Error al obtener los vehículos" });
     }
-};
+});
 
 // Obtener ubicación en tiempo real
-const getVehicleLocation = async (req, res) => {
+router.get("/location/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const vehiculo = await Autobus.findById(id);
@@ -25,11 +27,10 @@ const getVehicleLocation = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al obtener la ubicación" });
     }
-};
-
+});
 
 // Registrar vehículo
-const addVehicle = async (req, res) => {
+router.post("/add", async (req, res) => {
     try {
         const { placa, modelo, capacidad } = req.body;
 
@@ -43,10 +44,10 @@ const addVehicle = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al registrar el vehículo" });
     }
-};
+});
 
 // Actualizar vehículo
-const updateVehicle = async (req, res) => {
+router.put("/update/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const { placa, modelo, capacidad, estado } = req.body;
@@ -59,10 +60,10 @@ const updateVehicle = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al actualizar el vehículo" });
     }
-};
+});
 
 // Eliminar vehículo
-const deleteVehicle = async (req, res) => {
+router.delete("/delete/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const vehiculo = await Autobus.findById(id);
@@ -75,6 +76,6 @@ const deleteVehicle = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al eliminar el vehículo" });
     }
-};
+});
 
-module.exports = { getVehicles, getVehicleLocation, addVehicle, updateVehicle, deleteVehicle };
+module.exports = router;

@@ -20,7 +20,7 @@ const io = socketIo(server, {
 
 // Importar rutas
 const Authentication = require('./Endpoints/Authentication');
-const vehicleRoutes = require('./routes/vehicleRoutes');
+const vehicleRoutes = require('./Endpoints/vehicleController');
 const socketHandler = require("./sockets/socketHandler");  // Importamos el manejador de sockets
 
 mongoConnection(process.env.MONGODB_URI);
