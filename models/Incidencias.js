@@ -1,15 +1,17 @@
 const { model, Schema } = require('mongoose');
 
 const IncidenciaSchema = new Schema({
+    idRuta: { type: Schema.Types.ObjectId, ref: "Ruta" },
     descripcion: { type: String, required: true },
-    idUsuario: { type: Schema.Types.ObjectId, ref: "Usuario" },
+    reportadoPor: { type: Schema.Types.ObjectId, ref: "Usuario" },
     idAutoBus: { type: Schema.Types.ObjectId, ref: "AutoBus" },
     fechaDeReporte: { type: Date, default: Date.now() },
-    estado: { 
-        type: String, 
-        enum: ['Pendiente', 'Resuelto', 'En Proceso'], // Puedes añadir más estados si lo deseas
-        default: 'Pendiente' // Valor por defecto
+    evidencia: [String],
+    estado: {
+        type: String,
+        enum: ['Pendiente', 'Resuelto', 'En Proceso'],
+        default: 'Pendiente'
     }
 });
 
-module.exports = model("IncidenciaSchema", IncidenciaSchema);
+module.exports = model("Incidencias", IncidenciaSchema);

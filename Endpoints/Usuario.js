@@ -87,9 +87,7 @@ const userSchema = require('../models/Usuario');
  *                   type: string
  *                   example: "Detalles del error"
  */
-
-
-router.put('/asignar/:id/:rol', verificarRol(["Administrador"]), async (req, res) => {
+router.put('/asignar/:id/:rol', verificarRol(["Administrador"]), async(req, res) => {
     try {
         const { id: userId, rol } = req.params;
         const rolesValidos = ["Administrador", "Pasajero", "Operador"];
@@ -189,14 +187,11 @@ router.put('/asignar/:id/:rol', verificarRol(["Administrador"]), async (req, res
  *                   type: string
  *                   example: "Detalles del error"
  */
-
-
-
-router.get('/operadores', verificarRol(["Administrador"]), async (req, res) => {
+router.get('/operadores', verificarRol(["Administrador"]), async(req, res) => {
     try {
         const operadores = await userSchema.find({ userRol: "Operador" });
-        if(operadores.length === 0){
-            return res.status(200).json({message: "No hay ningun usuario con el rango Operador"})
+        if (operadores.length === 0) {
+            return res.status(200).json({ message: "No hay ningun usuario con el rango Operador" })
         }
         return res.status(200).json({ operadores });
     } catch (err) {

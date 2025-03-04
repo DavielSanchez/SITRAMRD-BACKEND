@@ -5,6 +5,205 @@ const AutoBus = require("../models/Autobus");
 const verificarRol = require("../middleware/verificarRol");
 
 
+
+/**
+ * @swagger
+ * /ruta/all:
+ *   get:
+ *     summary: Obtener todas las rutas
+ *     description: Devuelve una lista de todas las rutas registradas en el sistema, con detalles como nombre de la ruta, paradas, coordenadas y fecha de creación.
+ *     tags: [Ruta]
+ *     responses:
+ *       200:
+ *         description: Lista de rutas encontradas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     description: ID único de la ruta
+ *                     example: "67b58676a4da6e4181c9dbfb"
+ *                   nombreRuta:
+ *                     type: string
+ *                     description: Nombre de la ruta
+ *                     example: "Ruta 2"
+ *                   paradas:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           description: ID único de la parada
+ *                           example: "67b58676a4da6e4181c9dbfc"
+ *                         nombre:
+ *                           type: string
+ *                           description: Nombre de la parada
+ *                           example: "Parada 1"
+ *                         coordenadas:
+ *                           type: array
+ *                           items:
+ *                             type: number
+ *                           description: Coordenadas de la parada (latitud y longitud)
+ *                           example: [19.432608, -99.133209]
+ *                     description: Lista de paradas en la ruta con sus coordenadas
+ *                     example:
+ *                       - _id: "67b58676a4da6e4181c9dbfc"
+ *                         nombre: "Parada 1"
+ *                         coordenadas: [19.432608, -99.133209]
+ *                       - _id: "67b58676a4da6e4181c9dbfd"
+ *                         nombre: "Parada 2"
+ *                         coordenadas: [19.434123, -99.134567]
+ *                       - _id: "67b58676a4da6e4181c9dbfe"
+ *                         nombre: "Parada 3"
+ *                         coordenadas: [19.435678, -99.13589]
+ *                   fechaCreacion:
+ *                     type: string
+ *                     format: date-time
+ *                     description: Fecha y hora en que se creó la ruta
+ *                     example: "2025-02-19T07:21:26.922Z"
+ *       404:
+ *         description: No hay rutas disponibles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "No hay rutas disponibles."
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Hubo un error en el servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Error al acceder a la base de datos"
+ */
+router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const everyRoute = await RutaSchema.find();
+        if (everyRoute.length === 0) {
+            return res.status(404).json({ message: "No hay rutas disponibles." });
+        }
+        res.status(200).json(everyRoute);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Hubo un error en el servidor", error });
+    }
+});
+
+/**
+ * @swagger
+ * /ruta/get/{id}:
+ *   get:
+ *     summary: Obtener una ruta por su ID
+ *     description: Devuelve la información de una ruta específica por su ID.
+ *     tags: [Ruta]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la ruta
+ *         schema:
+ *           type: string
+ *           example: "67b58676a4da6e4181c9dbfb"
+ *     responses:
+ *       200:
+ *         description: Ruta encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Ruta encontrada"
+ *                 route:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID único de la ruta
+ *                       example: "67b58676a4da6e4181c9dbfb"
+ *                     nombreRuta:
+ *                       type: string
+ *                       description: Nombre de la ruta
+ *                       example: "Ruta 2"
+ *                     paradas:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: ID único de la parada
+ *                             example: "67b58676a4da6e4181c9dbfc"
+ *                           nombre:
+ *                             type: string
+ *                             description: Nombre de la parada
+ *                             example: "Parada 1"
+ *                           coordenadas:
+ *                             type: array
+ *                             items:
+ *                               type: number
+ *                             description: Coordenadas de la parada (latitud y longitud)
+ *                             example: [19.432608, -99.133209]
+ *                     fechaCreacion:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Fecha y hora en que se creó la ruta
+ *                       example: "2025-02-19T07:21:26.922Z"
+ *       404:
+ *         description: Ruta no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "La Id proporcionada es inexistente"
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Error en el servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Error al acceder a la base de datos"
+ */
+router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
+    try {
+        const id = req.params.id;
+        const RouteId = await RutaSchema.findById(id);
+
+        if (!RouteId) {
+            return res.status(404).json({ message: "La Id proporcionada es inexistente" });
+        }
+        res.status(200).json({ message: "Ruta encontrada", route: RouteId });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error en el servidor", error: error.message });
+    }
+});
+
 /**
  * @swagger
  * /ruta/add:
@@ -110,9 +309,6 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Error al guardar en la base de datos"
  */
-
-
-
 router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
     const { nombreRuta, paradas, coordenadas } = req.body;
     const ruta = new RutaSchema({
@@ -127,212 +323,6 @@ router.post("/add", verificarRol(["Administrador"]), async(req, res) => {
         res.status(201).json({ message: "Ruta agregada con éxito", ruta });
     } catch (error) {
         res.status(500).json({ message: "Error al agregar la ruta", error });
-    }
-});
-
-
-/**
- * @swagger
- * /ruta/all:
- *   get:
- *     summary: Obtener todas las rutas
- *     description: Devuelve una lista de todas las rutas registradas en el sistema, con detalles como nombre de la ruta, paradas, coordenadas y fecha de creación.
- *     tags: [Ruta]
- *     responses:
- *       200:
- *         description: Lista de rutas encontradas
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                     description: ID único de la ruta
- *                     example: "67b58676a4da6e4181c9dbfb"
- *                   nombreRuta:
- *                     type: string
- *                     description: Nombre de la ruta
- *                     example: "Ruta 2"
- *                   paradas:
- *                     type: array
- *                     items:
- *                       type: object
- *                       properties:
- *                         _id:
- *                           type: string
- *                           description: ID único de la parada
- *                           example: "67b58676a4da6e4181c9dbfc"
- *                         nombre:
- *                           type: string
- *                           description: Nombre de la parada
- *                           example: "Parada 1"
- *                         coordenadas:
- *                           type: array
- *                           items:
- *                             type: number
- *                           description: Coordenadas de la parada (latitud y longitud)
- *                           example: [19.432608, -99.133209]
- *                     description: Lista de paradas en la ruta con sus coordenadas
- *                     example:
- *                       - _id: "67b58676a4da6e4181c9dbfc"
- *                         nombre: "Parada 1"
- *                         coordenadas: [19.432608, -99.133209]
- *                       - _id: "67b58676a4da6e4181c9dbfd"
- *                         nombre: "Parada 2"
- *                         coordenadas: [19.434123, -99.134567]
- *                       - _id: "67b58676a4da6e4181c9dbfe"
- *                         nombre: "Parada 3"
- *                         coordenadas: [19.435678, -99.13589]
- *                   fechaCreacion:
- *                     type: string
- *                     format: date-time
- *                     description: Fecha y hora en que se creó la ruta
- *                     example: "2025-02-19T07:21:26.922Z"
- *       404:
- *         description: No hay rutas disponibles
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "No hay rutas disponibles."
- *       500:
- *         description: Error en el servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Hubo un error en el servidor"
- *                 error:
- *                   type: string
- *                   example: "Error al acceder a la base de datos"
- */
-
-
-router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
-    try {
-        const everyRoute = await RutaSchema.find();
-        if (everyRoute.length === 0) {
-            return res.status(404).json({ message: "No hay rutas disponibles." });
-        }
-        res.status(200).json(everyRoute);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Hubo un error en el servidor", error });
-    }
-});
-
-
-
-/**
- * @swagger
- * /ruta/get/{id}:
- *   get:
- *     summary: Obtener una ruta por su ID
- *     description: Devuelve la información de una ruta específica por su ID.
- *     tags: [Ruta]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: ID de la ruta
- *         schema:
- *           type: string
- *           example: "67b58676a4da6e4181c9dbfb"
- *     responses:
- *       200:
- *         description: Ruta encontrada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Ruta encontrada"
- *                 route:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                       description: ID único de la ruta
- *                       example: "67b58676a4da6e4181c9dbfb"
- *                     nombreRuta:
- *                       type: string
- *                       description: Nombre de la ruta
- *                       example: "Ruta 2"
- *                     paradas:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           _id:
- *                             type: string
- *                             description: ID único de la parada
- *                             example: "67b58676a4da6e4181c9dbfc"
- *                           nombre:
- *                             type: string
- *                             description: Nombre de la parada
- *                             example: "Parada 1"
- *                           coordenadas:
- *                             type: array
- *                             items:
- *                               type: number
- *                             description: Coordenadas de la parada (latitud y longitud)
- *                             example: [19.432608, -99.133209]
- *                     fechaCreacion:
- *                       type: string
- *                       format: date-time
- *                       description: Fecha y hora en que se creó la ruta
- *                       example: "2025-02-19T07:21:26.922Z"
- *       404:
- *         description: Ruta no encontrada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "La Id proporcionada es inexistente"
- *       500:
- *         description: Error en el servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Error en el servidor"
- *                 error:
- *                   type: string
- *                   example: "Error al acceder a la base de datos"
- */
-
-
-
-router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
-    try {
-        const id = req.params.id;
-        const RouteId = await RutaSchema.findById(id);
-
-        if (!RouteId) {
-            return res.status(404).json({ message: "La Id proporcionada es inexistente" });
-        }
-        res.status(200).json({ message: "Ruta encontrada", route: RouteId });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error en el servidor", error: error.message });
     }
 });
 
@@ -461,9 +451,6 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                   type: string
  *                   example: "Error al actualizar en la base de datos"
  */
-
-
-
 router.put("/update/:id", verificarRol(["Administrador"]), async(req, res) => {
     try {
         const routeId = req.params.id;
@@ -582,7 +569,6 @@ router.put("/update/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                   type: string
  *                   example: "Error al eliminar la ruta de la base de datos"
  */
-
 router.delete("/delete/:id", verificarRol(["Administrador"]), async(req, res) => {
     try {
         const id = req.params.id;
@@ -722,8 +708,6 @@ router.delete("/delete/:id", verificarRol(["Administrador"]), async(req, res) =>
  *                   type: string
  *                   example: "Error al asignar el autobús a la ruta"
  */
-
-
 router.post("/asignar", verificarRol(["Operador", "Administrador"]), async(req, res) => {
     try {
         const { rutaId, autobusId } = req.body;

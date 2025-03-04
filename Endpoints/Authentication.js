@@ -356,6 +356,7 @@ router.post('/login', async(req, res) => {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
 
+
         const payload = {
             id: user._id,
             nombre: user.nombre,

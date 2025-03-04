@@ -763,6 +763,10 @@ router.post("/guardar-metodo-pago", async(req, res) => {
         const usuario = await userSchema.findById(userId);
         if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
+        await stripe.paymentMethods.attach(paymentMethodId, {
+            customer: usuario.customerId,
+        });
+
         await stripe.customers.update(usuario.customerId, {
             invoice_settings: { default_payment_method: paymentMethodId },
         });
@@ -786,6 +790,7 @@ router.post("/guardar-metodo-pago", async(req, res) => {
         res.status(500).json({ error: "Error al guardar el método de pago" });
     }
 });
+
 
 
 /**

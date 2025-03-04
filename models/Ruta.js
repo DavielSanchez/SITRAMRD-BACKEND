@@ -19,6 +19,7 @@ const rutaSchema = new Schema({
 
     paradas: [{
         nombre: { type: String, required: true },
+        descripcion: { type: String, required: false },
         ubicacion: {
             type: {
                 type: String,
@@ -26,11 +27,12 @@ const rutaSchema = new Schema({
                 default: "Point",
             },
             coordinates: { type: [Number], required: true },
+            ordenParada: { type: Number, required: true },
         },
     }, ],
 
     Tarifa: { type: Number, required: true },
-
+    estado: { type: String, enum: ['activa', 'inactiva'], default: 'activa' },
     fechaCreacion: { type: Date, default: Date.now },
 });
 

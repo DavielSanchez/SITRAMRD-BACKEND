@@ -1,16 +1,23 @@
 const express = require("express");
+const http = require('http')
+const socketIo = require('socket.io')
 const dotenv = require('dotenv')
 const swaggerUi = require('swagger-ui-express')
 const specs = require('./swagger/swagger')
 const cors = require('cors')
 const { mongoConnection } = require('./DB')
+const logger = require('morgan')
 dotenv.config();
 const app = express();
+const server = http.createServer(app)
+const socketConfig = require('./socket')
+
 const Authentication = require('./Endpoints/Authentication')
 const Billetera = require('./Endpoints/Billetera')
 const Ruta = require('./Endpoints/Ruta')
 const Incidencia = require('./Endpoints/Incidencia')
-const Usuarios = require('./Endpoints/Usuario')
+const Usuarios = require('./Endpoints/Usuario');
+const Chat = require('./Endpoints/Chat')
 
 mongoConnection(process.env.MONGODB_URI)
 
@@ -24,6 +31,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'], // Agregar Authorization aquí
     credentials: true
 }));
+app.use(logger('dev'))
 app.use('/wallet/webhook-stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 /**
@@ -35,13 +43,15 @@ app.use(express.json());
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs))
 
+
 app.use('/auth', Authentication)
 app.use('/wallet', Billetera)
 app.use('/ruta', Ruta)
 app.use('/usuario', Usuarios)
 app.use('/incidencia', Incidencia)
+app.use('/chat', Chat)
 
-
+socketConfig(server)
 
 /**
  * @openapi
@@ -67,6 +77,6 @@ app.get("/", (req, res) => {
 });
 
 
-app.listen(process.env.PORT, () => {
+server.listen(process.env.PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${process.env.PORT}`);
 })
