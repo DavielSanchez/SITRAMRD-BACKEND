@@ -89,15 +89,15 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
-router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
+router.post('/add', async(req, res) => {
     try {
-        const { descripcion, idAutoBus } = req.body;
+        const { descripcion, idAutoBus, userId } = req.body;
 
         if (!descripcion || !idAutoBus) {
             return res.status(400).json({ message: 'Faltan parámetros requeridos: descripcion o idAutoBus' });
         }
 
-        const idUsuario = req.user.id;
+        const idUsuario = userId;
 
         const incidencia = new IncidenciaSchema({
             descripcion: descripcion,
@@ -112,6 +112,7 @@ router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]),
         res.status(201).json({ message: "Incidencia registrada correctamente", incidencia });
 
     } catch (err) {
+        console.log(err)
         res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
 });
@@ -207,7 +208,7 @@ router.post('/add', verificarToken, verificarRol(["Operador", "Administrador"]),
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
-router.put('/estado/:id', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
+router.put('/estado/:id', async(req, res) => {
     try {
         const { id } = req.params;
         const { estado } = req.body;
@@ -381,11 +382,12 @@ router.delete('/:id', async(req, res) => {
 router.get('/all', async(req, res) => {
     try {
         const incidencias = await IncidenciaSchema.find()
-            .populate('idUsuario', 'nombre correo')
-            .populate('idAutoBus', 'placa')
+            // .populate('idUsuario', 'nombre correo')
+            // .populate('idAutoBus', 'placa')
             .sort({ fechaDeReporte: -1 });
         res.status(200).json({ incidencias });
     } catch (err) {
+        console.log(err)
         res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });
     }
 });
@@ -494,7 +496,7 @@ router.get('/all', async(req, res) => {
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
-router.get('/reporte', verificarToken, verificarRol(["Administrador"]), async(req, res) => {
+router.get('/reporte', async(req, res) => {
     try {
         const { fechaInicio, fechaFin, estado } = req.query;
 
@@ -505,7 +507,7 @@ router.get('/reporte', verificarToken, verificarRol(["Administrador"]), async(re
 
         const incidencias = await IncidenciaSchema.find(query)
             .populate('idUsuario', 'nombre correo')
-            .populate('idAutobus', 'placa'); // Cambiado de idRuta a idAutobus
+            .populate('idAutobus', 'placa');
 
         res.status(200).json({ incidencias });
 
