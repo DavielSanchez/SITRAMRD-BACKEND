@@ -1,9 +1,27 @@
-const Autobus = require("../models/Autobus");
+module.exports = (server) => {
+    const io = socketIo(server, {
+        cors: {
+            origin: "http://localhost:5173",
+            methods: ["GET", "POST"]
+        }
+    });
 
-const socketHandler = (io) => {
     io.on("connection", (socket) => {
-        console.log("Cliente conectado");
+        console.log("Nuevo cliente conectado");
 
+        // 🔹 Manejo de mensajes
+        socket.on("nuevo-mensaje", async (mensajeData) => {
+            try {
+                const nuevoMensaje = new Mensaje(mensajeData);
+                await nuevoMensaje.save();
+
+                io.emit("mensaje-recibido", nuevoMensaje);
+            } catch (error) {
+                console.error("Error al guardar el mensaje:", error);
+            }
+        });
+
+        // 🔹 Manejo de actualización de ubicación
         socket.on("updateLocation", async ({ id, lat, lon }) => {
             try {
                 const vehiculo = await Autobus.findByIdAndUpdate(id, { ubicacionActual: { lat, lon } }, { new: true });
@@ -21,5 +39,3 @@ const socketHandler = (io) => {
         });
     });
 };
-
-module.exports = socketHandler;

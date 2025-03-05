@@ -1,46 +1,60 @@
 const express = require("express");
-const dotenv = require('dotenv');
-const swaggerUi = require('swagger-ui-express');
-const specs = require('./swagger/swagger');
-const cors = require('cors');
-const socketIo = require("socket.io");
+const dotenv = require("dotenv");
+const swaggerUi = require("swagger-ui-express");
+const specs = require("./swagger/swagger");
+const cors = require("cors");
 const http = require("http");
+const morgan = require("morgan");
 
-const { mongoConnection } = require('./DB');
+const { mongoConnection } = require("./DB");
+const socketConfig = require("./socket");
+
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app); // Crear el servidor HTTP
+const server = http.createServer(app); // Servidor HTTP
 
-const io = socketIo(server, {
-    cors: {
-        origin: "*",
-    },
-});
-
-// Importar rutas
-const Authentication = require('./Endpoints/Authentication');
-const vehicleRoutes = require('./Endpoints/vehicleController');
-const socketHandler = require("./sockets/socketHandler");  // Importamos el manejador de sockets
-
+// 🔹 Conexión a MongoDB
 mongoConnection(process.env.MONGODB_URI);
 
-app.use(cors());
+// 🔹 Configuración de Middlewares
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+}));
+app.use(morgan("dev"));
 app.use(express.json());
 
+// 🔹 Documentación Swagger
 /**
  * @swagger
  * tags:
  *   - name: Principal | Bienvenida
  *   - name: Autenticación | Usuarios
  */
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-app.use('/auth', Authentication);
-app.use('/vehicles', vehicleRoutes);
+// 🔹 Importación y uso de rutas
+const Authentication = require("./Endpoints/Authentication");
+const Billetera = require("./Endpoints/Billetera");
+const Ruta = require("./Endpoints/Ruta");
+const Incidencia = require("./Endpoints/Incidencia");
+const Usuarios = require("./Endpoints/Usuario");
+const Chat = require("./Endpoints/Chat");
+const Autobuses = require("./Endpoints/Autobuses");
 
-// Manejo de Socket.IO con el handler externo
-socketHandler(io);  // Aquí llamamos la función para gestionar los eventos de socket
+app.use("/auth", Authentication);
+app.use("/wallet", Billetera);
+app.use("/ruta", Ruta);
+app.use("/usuario", Usuarios);
+app.use("/incidencia", Incidencia);
+app.use("/chat", Chat);
+app.use("/autobuses", Autobuses);
+
+// 🔹 Configuración de WebSockets
+socketConfig(server);
 
 /**
  * @openapi
@@ -65,8 +79,8 @@ app.get("/", (req, res) => {
     res.json({ mensaje: "¡Bienvenido a la API de SITRAMRD!" });
 });
 
-// Iniciar servidor en el puerto
+// 🔹 Iniciar el servidor
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
 });
