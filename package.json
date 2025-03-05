@@ -30,11 +30,7 @@
         "path": "^0.12.7",
         "sitramrd-backend": "file:",
         "socket.io": "^4.8.1",
-<<<<<<< HEAD
-        "socket.io-client": "^4.8.1",
-=======
         "stripe": "^17.7.0",
->>>>>>> develop
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.1",
         "uuid": "^11.0.5"
