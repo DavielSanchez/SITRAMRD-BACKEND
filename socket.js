@@ -1,3 +1,7 @@
+const socketIo = require("socket.io");
+const Mensaje = require("./models/Mensaje");
+const Autobus = require("./models/Autobus");
+
 module.exports = (server) => {
     const io = socketIo(server, {
         cors: {
