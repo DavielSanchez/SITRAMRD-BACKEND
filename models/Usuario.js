@@ -6,15 +6,29 @@ const Salting = 10;
 
 const userSchema = new Schema({
     nombre: { type: String, required: true },
-    apellido: { type: String, required: false },
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
-    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], default: "Pasajero" },
-    tarjetas: [{
-        tarjetaId: { type: Schema.Types.ObjectId, ref: 'Tarjeta' },
+    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador", "Conductor"], default: "Pasajero" },
+    userImage: { type: String, required: true },
+    tarjetasVirtuales: [{
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
         tarjetaNombre: { type: String, required: false }
     }],
+    tarjetasFisicas: [{
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
+    }],
+    customerId: { type: String, unique: true },
     estadoUsuario: { type: String, enum: ['activo', 'suspendido'], default: 'activo' },
+    tema: { type: String, default: 'light' },
+    metodosPago: [{
+        paymentMethodId: { type: String },
+        cardType: { type: String },
+        last4: { type: String },
+        expMonth: { type: Number },
+        expYear: { type: Number },
+        brand: { type: String },
+    }],
+    rutasAsignadas: [{ type: Schema.Types.ObjectId, ref: "Ruta" }],
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },

@@ -16,6 +16,7 @@
         "@eslint/object-schema": "^2.1.6",
         "@getbrevo/brevo": "^2.2.0",
         "bcryptjs": "^2.4.3",
+        "body-parser": "^1.20.3",
         "cors": "^2.8.5",
         "crypto": "^1.0.1",
         "dotenv": "^16.4.7",
@@ -29,7 +30,11 @@
         "path": "^0.12.7",
         "sitramrd-backend": "file:",
         "socket.io": "^4.8.1",
+<<<<<<< HEAD
         "socket.io-client": "^4.8.1",
+=======
+        "stripe": "^17.7.0",
+>>>>>>> develop
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.1",
         "uuid": "^11.0.5"
