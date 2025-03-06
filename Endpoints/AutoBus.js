@@ -99,7 +99,7 @@ const verificarToken = require("../middleware/verificarToken")
  *                   type: string
  *                   example: "Error al guardar en la base de datos"
  */
-router.post("/add", verificarToken, verificarRol(["Administrador"]), async(req, res) => {
+router.post("/add", async(req, res) => {
     try {
         const { placa, modelo, capacidad, estado, ubicacionActual, idRuta } = req.body;
 
@@ -248,8 +248,7 @@ router.post("/add", verificarToken, verificarRol(["Administrador"]), async(req, 
  *                   type: string
  *                   example: "Error al asignar el autobús a la ruta"
  */
-
-router.post("/asignar", verificarToken, verificarRol(["Administrador"]), async(req, res) => {
+router.post("/asignar", async(req, res) => {
     try {
         const { rutaId, autobusId } = req.body;
 
@@ -337,8 +336,7 @@ router.post("/asignar", verificarToken, verificarRol(["Administrador"]), async(r
  *                   type: string
  *                   example: "Detalles del error"
  */
-
-router.get("/all", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.get("/all", async(req, res) => {
     try {
         const autobuses = await Autobus.find();
         res.json(autobuses);
@@ -411,8 +409,7 @@ router.get("/all", verificarToken, verificarRol(["Administrador"]), async (req, 
  *                   type: string
  *                   example: "Error al obtener el autobús"
  */
-
-router.get("/:id", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.get("/:id", async(req, res) => {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: "ID del autobús es requerido" });
     try {
@@ -531,8 +528,7 @@ router.get("/:id", verificarToken, verificarRol(["Administrador"]), async (req, 
  *                   type: string
  *                   example: "Detalles del error"
  */
-
-router.put("/update/:id", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.put("/update/:id", async(req, res) => {
     try {
         const { id } = req.params;
         const { placa, modelo, capacidad, estado, ubicacionActual, idRuta } = req.body;
@@ -627,9 +623,7 @@ router.put("/update/:id", verificarToken, verificarRol(["Administrador"]), async
  *                   type: string
  *                   example: "Error en el servidor"
  */
-
-
-router.delete("/delete/:id", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.delete("/delete/:id", async(req, res) => {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: "ID del autobús es requerido" });
     try {
@@ -702,9 +696,7 @@ router.delete("/delete/:id", verificarToken, verificarRol(["Administrador"]), as
  *                 error:
  *                   type: string
  */
-
-
-router.patch("/estado/:id", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.patch("/estado/:id", async(req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
     if (!id || !estado) return res.status(400).json({ error: "ID y estado son requeridos" });
@@ -790,8 +782,7 @@ router.patch("/estado/:id", verificarToken, verificarRol(["Administrador"]), asy
  *                   type: string
  *                   description: Mensaje de error indicando que el autobús no fue encontrado.
  */
-
-router.patch("/ubicacion/:id", verificarToken, verificarRol(["Administrador"]), async (req, res) => {
+router.patch("/ubicacion/:id", async(req, res) => {
     const { id } = req.params;
     const { ubicacionActual } = req.body;
     if (!id || !ubicacionActual) return res.status(400).json({ error: "ID y ubicación son requeridos" });
