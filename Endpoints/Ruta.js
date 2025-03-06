@@ -59,7 +59,7 @@ const verificarRol = require("../middleware/verificarRol");
 
 
 
-router.post('/add', verificarRol(["Administrador"]), async (req, res) => {
+router.post('/add', async (req, res) => {
     try {
         const { nombreRuta, coordenadas, paradas, Tarifa } = req.body;
         console.log(nombreRuta, coordenadas, paradas, Tarifa);
@@ -87,7 +87,6 @@ router.post('/add', verificarRol(["Administrador"]), async (req, res) => {
         res.status(500).json({ message: "Hubo un error en el servidor", err });
     }
 });
-
 
 
 
@@ -199,9 +198,7 @@ router.post('/add', verificarRol(["Administrador"]), async (req, res) => {
  *                   type: string
  *                   example: "Error al acceder a la base de datos"
  */
-
-
-router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
+router.get("/all", async(req, res) => {
     try {
         const everyRoute = await RutaSchema.find();
         if (everyRoute.length === 0) {
@@ -213,8 +210,6 @@ router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
         res.status(500).json({ message: "Hubo un error en el servidor", error });
     }
 });
-
-
 
 /**
  * @swagger
@@ -336,11 +331,7 @@ router.get("/all", verificarRol(["Administrador"]), async(req, res) => {
  *                   type: string
  *                   example: "Error al acceder a la base de datos"
  */
-
-
-
-
-router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
+router.get("/get/:id", async(req, res) => {
     try {
         const id = req.params.id;
         const RouteId = await RutaSchema.findById(id);
@@ -355,7 +346,6 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
         res.status(500).json({ message: "Error en el servidor", error: error.message });
     }
 });
-
 
 
 /**
@@ -527,8 +517,7 @@ router.get("/get/:id", verificarRol(["Administrador"]), async(req, res) => {
  *                   type: string
  *                   example: "Error al actualizar en la base de datos"
  */
-
-router.put("/update/:id", verificarRol(["Administrador"]), async (req, res) => {
+router.put("/update/:id", async (req, res) => {
     try {
         const routeId = req.params.id;
         const { nombreRuta, paradas, coordenadas, Tarifa } = req.body;
@@ -647,8 +636,7 @@ router.put("/update/:id", verificarRol(["Administrador"]), async (req, res) => {
  *                   type: string
  *                   example: "Error al eliminar la ruta de la base de datos"
  */
-
-router.delete("/delete/:id", verificarRol(["Administrador"]), async(req, res) => {
+router.delete("/delete/:id", async(req, res) => {
     try {
         const id = req.params.id;
 
@@ -663,7 +651,6 @@ router.delete("/delete/:id", verificarRol(["Administrador"]), async(req, res) =>
         res.status(500).json({ message: "Error en el servidor", error });
     }
 });
-
 
 
 module.exports = router;

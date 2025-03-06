@@ -90,8 +90,6 @@ const IncidenciaSchema = require("../models/Incidencias");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
-
-
 router.post('/add', async (req, res) => {
     try {
         const { descripcion, idAutoBus, idUsuario } = req.body;
@@ -389,11 +387,12 @@ router.delete('/:id', async(req, res) => {
 router.get('/all', async(req, res) => {
     try {
         const incidencias = await IncidenciaSchema.find()
-            .populate('idUsuario', 'nombre correo')
-            .populate('idAutoBus', 'placa')
+            // .populate('idUsuario', 'nombre correo')
+            // .populate('idAutoBus', 'placa')
             .sort({ fechaDeReporte: -1 });
         res.status(200).json({ incidencias });
     } catch (err) {
+        console.log(err)
         res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });
     }
 });
@@ -513,7 +512,7 @@ router.get('/reporte', async(req, res) => {
 
         const incidencias = await IncidenciaSchema.find(query)
             .populate('idUsuario', 'nombre correo')
-            .populate('idAutobus', 'placa'); // Cambiado de idRuta a idAutobus
+            .populate('idAutobus', 'placa');
 
         res.status(200).json({ incidencias });
 

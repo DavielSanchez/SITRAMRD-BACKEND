@@ -8,7 +8,7 @@ const userSchema = new Schema({
     nombre: { type: String, required: true },
     correo: { type: String, required: true, unique: true },
     contraseña: { type: String, required: true },
-    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador"], default: "Pasajero" },
+    userRol: { type: String, enum: ["Pasajero", "Operador", "Administrador", "Conductor"], default: "Pasajero" },
     userImage: { type: String, required: true },
     tarjetasVirtuales: [{
         tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
@@ -28,6 +28,7 @@ const userSchema = new Schema({
         expYear: { type: Number },
         brand: { type: String },
     }],
+    rutasAsignadas: [{ type: Schema.Types.ObjectId, ref: "Ruta" }],
     fechaCreacion: { type: Date, default: Date.now },
     lastLogin: { type: Date, required: false },
     fechaModificacion: { type: Date, default: Date.now },
