@@ -1,22 +1,11 @@
-const { Schema, model } = require("mongoose");
+const { Schema, model } = require('mongoose');
 
 const rutaSchema = new Schema({
     nombreRuta: { type: String, required: true },
-
     coordenadas: {
-        type: {
-            type: String,
-            enum: ["LineString"],
-            default: "LineString",
-        },
-        coordinates: {
-            type: [
-                [Number]
-            ],
-            required: true,
-        },
+        type: { type: String, enum: ["LineString"], default: "LineString" },
+        coordinates: { type: [[Number]], required: true }
     },
-
     paradas: [{
         nombre: { type: String, required: true },
         descripcion: { type: String, required: false },
@@ -36,6 +25,8 @@ const rutaSchema = new Schema({
     fechaCreacion: { type: Date, default: Date.now },
 });
 
+// Crear el índice 2dsphere para las ubicaciones de las paradas
 rutaSchema.index({ "paradas.ubicacion": "2dsphere" });
 
-module.exports = model("Ruta", rutaSchema);
+// Exportar el modelo
+module.exports = model('Ruta', rutaSchema);
