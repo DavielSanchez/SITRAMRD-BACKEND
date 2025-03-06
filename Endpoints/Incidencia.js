@@ -1,15 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const IncidenciaSchema = require("../models/Incidencias");
-const verificarToken = require("../middleware/verificarToken")
-const verificarRol = require("../middleware/verificarRol");
-
 /**
  * @swagger
  * /incidencia/add:
  *   post:
  *     summary: Registrar una incidencia
- *     description: Permite a un operador o administrador registrar una incidencia asociada a una ruta. El estado de la incidencia será "Pendiente" por defecto.
+ *     description: Permite a un operador o administrador registrar una incidencia asociada a un autobús. El estado de la incidencia será "Pendiente" por defecto.
  *     tags: [Incidencias]
  *     requestBody:
  *       required: true
@@ -20,12 +17,16 @@ const verificarRol = require("../middleware/verificarRol");
  *             properties:
  *               descripcion:
  *                 type: string
- *                 description: Descripción de la incidencia
+ *                 description: Descripción detallada de la incidencia
  *                 example: "Autobús con retraso debido a condiciones climáticas."
  *               idAutoBus:
  *                 type: string
- *                 description: ID de la ruta asociada a la incidencia
+ *                 description: ID del autobús asociado a la incidencia
  *                 example: "605c72ef1532071b7c8c8a12"
+ *               idUsuario:
+ *                 type: string
+ *                 description: ID del usuario que reporta la incidencia
+ *                 example: "67b569f4ce5b1cf866357f0e"
  *     responses:
  *       201:
  *         description: Incidencia registrada correctamente
@@ -50,7 +51,7 @@ const verificarRol = require("../middleware/verificarRol");
  *                       example: "Autobús con retraso debido a condiciones climáticas."
  *                     idAutoBus:
  *                       type: string
- *                       description: ID de la ruta asociada a la incidencia
+ *                       description: ID del autobús asociado a la incidencia
  *                       example: "605c72ef1532071b7c8c8a12"
  *                     idUsuario:
  *                       type: string
@@ -63,10 +64,10 @@ const verificarRol = require("../middleware/verificarRol");
  *                     fechaDeReporte:
  *                       type: string
  *                       format: date-time
- *                       description: Fecha en que se reportó la incidencia
+ *                       description: Fecha y hora en que se registró la incidencia
  *                       example: "2025-02-19T08:07:36.456Z"
  *       400:
- *         description: Parámetros incorrectos
+ *         description: Parámetros incorrectos o faltantes
  *         content:
  *           application/json:
  *             schema:
@@ -74,9 +75,9 @@ const verificarRol = require("../middleware/verificarRol");
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Faltan parámetros requeridos: descripcion o idAutoBus"
+ *                   example: "Faltan parámetros requeridos: descripcion, idAutoBus o idUsuario"
  *       500:
- *         description: Error en el servidor
+ *         description: Error en el servidor al procesar la solicitud
  *         content:
  *           application/json:
  *             schema:
@@ -89,31 +90,36 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
+
+
 router.post('/add', async (req, res) => {
     try {
-        const { nombreRuta, coordenadas, paradas, tarifa } = req.body;
+        const { descripcion, idAutoBus, idUsuario } = req.body;
 
-        // Validación de parámetros requeridos
-        if (!nombreRuta || !coordenadas || !paradas || tarifa === undefined) {
-            return res.status(400).json({ message: 'Faltan parámetros requeridos: nombreRuta, coordenadas, paradas o tarifa' });
+        if (!descripcion || !idAutoBus || !idUsuario) {
+            return res.status(400).json({ message: "Faltan parámetros requeridos: descripcion, idAutoBus o idUsuario" });
         }
 
-        // Crear la ruta con la tarifa incluida
-        const ruta = new RutaSchema({
-            nombreRuta,
-            coordenadas,
-            paradas,
-            Tarifa: tarifa, // Asegurándose de incluir la tarifa
-            fechaCreacion: Date.now(),
+        const nuevaIncidencia = new IncidenciaSchema({
+            descripcion,
+            idAutoBus,
+            idUsuario,
+            estado: 'Pendiente', // Estado por defecto
+            fechaDeReporte: Date.now()
         });
 
-        // Guardar la ruta en la base de datos
-        await ruta.save();
+        await nuevaIncidencia.save();
 
-        res.status(201).json({ message: "Ruta agregada con éxito", ruta });
+        res.status(201).json({ 
+            message: "Incidencia registrada correctamente",
+            incidencia: nuevaIncidencia
+        });
 
     } catch (err) {
-        res.status(500).json({ message: "Hubo un error en el servidor", err });
+        res.status(500).json({ 
+            message: "Hubo un error en el servidor",
+            error: err.message 
+        });
     }
 });
 
@@ -209,7 +215,7 @@ router.post('/add', async (req, res) => {
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
-router.put('/estado/:id', verificarToken, verificarRol(["Operador", "Administrador"]), async(req, res) => {
+router.put('/estado/:id', async(req, res) => {
     try {
         const { id } = req.params;
         const { estado } = req.body;
@@ -496,7 +502,7 @@ router.get('/all', async(req, res) => {
  *                   type: string
  *                   example: "Error de conexión a la base de datos"
  */
-router.get('/reporte', verificarToken, verificarRol(["Administrador"]), async(req, res) => {
+router.get('/reporte', async(req, res) => {
     try {
         const { fechaInicio, fechaFin, estado } = req.query;
 
