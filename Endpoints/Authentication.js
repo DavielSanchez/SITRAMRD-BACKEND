@@ -234,7 +234,7 @@ router.get('/users/nombre/:nombre', (req, res) => {
  */
 router.post('/users/add', async(req, res) => {
     try {
-        const { nombre, correo, contraseña, userImage } = req.body;
+        const { nombre, correo, contraseña, userImage, userRole } = req.body;
 
         const existingUser = await userSchema.findOne({ correo });
         if (existingUser) {
@@ -247,7 +247,7 @@ router.post('/users/add', async(req, res) => {
             nombre,
             correo: correo.toLowerCase(),
             contraseña,
-            userRol: "Pasajero",
+            userRol: userRole,
             userImage,
             estadoUsuario: "activo",
             customerId: clienteStripe.id,

@@ -5,13 +5,47 @@ const Mensaje = require("../models/Mensaje")
 
 const router = express.Router();
 
+router.get("/obtener-chats-usuario/:userId", async(req, res) => {
+    const { userId } = req.params; // Usar params en vez de body
+    try {
+        const chats = await Chat.find({ participantes: userId }).populate("participantes");
+        res.json(chats);
+    } catch (error) {
+        console.error("Error al obtener los chats:", error);
+        res.status(500).send("Error al obtener los chats.");
+    }
+});
+
+
+router.post("/obtener-chat-privados", async(req, res) => {
+    const { emisor, receptor } = req.body;
+
+    try {
+        // Buscar un chat privado entre los dos usuarios
+        const chat = await Chat.findOne({
+            tipo: "privado",
+            participantes: { $all: [emisor, receptor] },
+        });
+
+        if (chat) {
+            return res.json(chat);
+        }
+
+        res.status(404).json({ error: "No se encontró el chat" }); // Si no existe
+    } catch (error) {
+        console.error("Error al buscar el chat:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+});
+
+
 router.get("/obtener-mensajes/:chatId", async(req, res) => {
     try {
         const { chatId } = req.params;
 
         const mensajes = await Mensaje.find({ chatId })
-            .populate("remitente", "nombre_usuario")
-            .sort({ fechaEnviado: 1 });
+            // .populate("remitente", "nombre_usuario")
+            .sort({ fechaEnviado: -1 });
 
         if (mensajes.length === 0) {
             return res.status(404).json({ message: "No hay mensajes en este chat" });
@@ -44,6 +78,11 @@ router.post("/enviar-mensaje", async(req, res) => {
     try {
         const { texto, remitente, chatId, imagen } = req.body;
 
+        // Validar si el chatId tiene el formato adecuado de ObjectId
+        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+            return res.status(400).json({ error: "El chatId proporcionado no es válido" });
+        }
+
         const chat = await Chat.findById(chatId);
         if (!chat) {
             return res.status(400).json({ error: "Chat no encontrado" });
@@ -53,7 +92,7 @@ router.post("/enviar-mensaje", async(req, res) => {
             contenido: texto,
             imagenUrl: imagen,
             remitente,
-            chatId,
+            chatId: new mongoose.Types.ObjectId(chatId),
         });
 
         await mensaje.save();
@@ -64,9 +103,6 @@ router.post("/enviar-mensaje", async(req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-
-
 
 
 
