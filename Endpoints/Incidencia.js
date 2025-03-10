@@ -521,4 +521,106 @@ router.get('/reporte', async(req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /incidencias/filtrar:
+ *   get:
+ *     summary: Obtener incidencias filtradas por estado
+ *     description: Retorna una lista de incidencias filtradas según su estado.
+ *     tags: [Incidencias]
+ *     parameters:
+ *       - in: query
+ *         name: estado
+ *         required: false
+ *         description: Estado de la incidencia.
+ *         schema:
+ *           type: string
+ *           enum: [Pendiente, Resuelto, En Proceso]
+ *           example: Pendiente
+ *     responses:
+ *       200:
+ *         description: Lista de incidencias obtenida correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 incidencias:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: ID único de la incidencia
+ *                         example: "60f4e3b4d8b9b40015c68409"
+ *                       descripcion:
+ *                         type: string
+ *                         description: Descripción de la incidencia
+ *                         example: "Falla en el motor del autobús."
+ *                       idAutoBus:
+ *                         type: string
+ *                         description: ID del autobús asociado
+ *                         example: "605c72ef1532071b7c8c8a12"
+ *                       reportadoPor:
+ *                         type: string
+ *                         description: ID del usuario que reportó la incidencia
+ *                         example: "60f4e3b4d8b9b40015c68408"
+ *                       estado:
+ *                         type: string
+ *                         description: Estado actual de la incidencia
+ *                         example: "Pendiente"
+ *                       fechaDeReporte:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Fecha en que se reportó la incidencia
+ *                         example: "2025-02-19T14:30:00.000Z"
+ *       400:
+ *         description: Parámetro de estado inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "El estado proporcionado no es válido"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Hubo un error al obtener las incidencias"
+ */
+
+
+
+router.get('/filtrar', async (req, res) => {
+    try {
+        let { estado } = req.query;
+        const estadosValidos = ['Pendiente', 'Resuelto', 'En Proceso'];
+        
+        if (!estadosValidos.includes(estado)) {
+            return res.status(400).json({ message: 'Estado no válido. Debe ser Pendiente, Resuelto o En Proceso.' });
+        }
+        
+        const incidencias = await IncidenciaSchema.find({estado})
+            .sort({ fechaDeReporte: -1 });
+        
+        if (incidencias.length === 0) {
+            return res.status(200).json({ message: 'No hay incidencias con este estado.' });
+        }
+        
+        res.status(200).json({ incidencias });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Hubo un error al obtener las incidencias', error: err });
+    }
+});
+
+
 module.exports = router;
