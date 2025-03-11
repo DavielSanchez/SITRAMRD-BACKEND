@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const Autobus = require("../models/Autobus");
 
-<<<<<<< HEAD
-=======
 /**
  * @swagger
  * tags:
@@ -11,7 +9,6 @@ const Autobus = require("../models/Autobus");
  *     description: Endpoints para la gestión de autobuses en la plataforma.
  */
 
->>>>>>> develop
 // Listar vehículos
 router.get("/", async (req, res) => {
     try {
@@ -22,8 +19,6 @@ router.get("/", async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-=======
 /**
  * @swagger
  * /vehicles:
@@ -55,7 +50,6 @@ router.get("/", async (req, res) => {
  *         description: Error al obtener los vehículos.
  */
 
->>>>>>> develop
 // Obtener ubicación en tiempo real
 router.get("/location/:id", async (req, res) => {
     try {
@@ -73,8 +67,6 @@ router.get("/location/:id", async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-=======
 /**
  * @swagger
  * /vehicles/location/{id}:
@@ -113,7 +105,6 @@ router.get("/location/:id", async (req, res) => {
  */
 
 
->>>>>>> develop
 // Registrar vehículo
 router.post("/add", async (req, res) => {
     try {
@@ -131,8 +122,6 @@ router.post("/add", async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-=======
 /**
  * @swagger
  * /vehicles/add:
@@ -162,7 +151,6 @@ router.post("/add", async (req, res) => {
  *         description: Error en el servidor.
  */
 
->>>>>>> develop
 // Actualizar vehículo
 router.put("/update/:id", async (req, res) => {
     try {
@@ -179,8 +167,6 @@ router.put("/update/:id", async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-=======
 /**
  * @swagger
  * /autobus/update/{id}:
@@ -220,7 +206,6 @@ router.put("/update/:id", async (req, res) => {
  */
 
 
->>>>>>> develop
 // Eliminar vehículo
 router.delete("/delete/:id", async (req, res) => {
     try {
@@ -237,9 +222,6 @@ router.delete("/delete/:id", async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
-module.exports = router;
-=======
 /**
  * @swagger
  * /vehicles/delete/{id}:
@@ -267,4 +249,3 @@ module.exports = router;
 
 module.exports = router;
 
->>>>>>> develop

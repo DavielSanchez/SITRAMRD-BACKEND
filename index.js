@@ -18,6 +18,7 @@ const Ruta = require('./Endpoints/Ruta')
 const Incidencia = require('./Endpoints/Incidencia')
 const Usuarios = require('./Endpoints/Usuario');
 const Chat = require('./Endpoints/Chat')
+const Autobuses = require('./Endpoints/Autobuses')
 
 mongoConnection(process.env.MONGODB_URI)
 
@@ -50,6 +51,7 @@ app.use('/ruta', Ruta)
 app.use('/usuario', Usuarios)
 app.use('/incidencia', Incidencia)
 app.use('/chat', Chat)
+app.use('/autobuses', Autobuses)
 
 socketConfig(server)
 
