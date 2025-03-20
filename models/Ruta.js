@@ -4,7 +4,12 @@ const rutaSchema = new Schema({
     nombreRuta: { type: String, required: true },
     coordenadas: {
         type: { type: String, enum: ["LineString"], default: "LineString" },
-        coordinates: { type: [[Number]], required: true }
+        coordinates: {
+            type: [
+                [Number]
+            ],
+            required: true
+        }
     },
     paradas: [{
         nombre: { type: String, required: true },
@@ -16,17 +21,15 @@ const rutaSchema = new Schema({
                 default: "Point",
             },
             coordinates: { type: [Number], required: true },
-            ordenParada: { type: Number, required: true },
+            ordenParada: { type: Number, required: false },
         },
-    }, ],
-
+    }],
+    tipo: { type: String, enum: ['Corredor', 'Metro', 'Teleferico'], default: 'Corredor', required: true },
     Tarifa: { type: Number, required: true },
-    estado: { type: String, enum: ['activa', 'inactiva'], default: 'activa' },
+    estado: { type: String, enum: ['activa', 'inactiva', 'bloqueada'], default: 'activa' },
     fechaCreacion: { type: Date, default: Date.now },
 });
 
-// Crear el índice 2dsphere para las ubicaciones de las paradas
 rutaSchema.index({ "paradas.ubicacion": "2dsphere" });
 
-// Exportar el modelo
 module.exports = model('Ruta', rutaSchema);
