@@ -90,7 +90,7 @@ const IncidenciaSchema = require("../models/Incidencias");
  *                   type: string
  *                   example: "Error al registrar la incidencia"
  */
-router.post('/add', async (req, res) => {
+router.post('/add', async(req, res) => {
     try {
         const { descripcion, idAutoBus, idUsuario } = req.body;
 
@@ -108,15 +108,15 @@ router.post('/add', async (req, res) => {
 
         await nuevaIncidencia.save();
 
-        res.status(201).json({ 
+        res.status(201).json({
             message: "Incidencia registrada correctamente",
             incidencia: nuevaIncidencia
         });
 
     } catch (err) {
-        res.status(500).json({ 
+        res.status(500).json({
             message: "Hubo un error en el servidor",
-            error: err.message 
+            error: err.message
         });
     }
 });
@@ -390,7 +390,7 @@ router.get('/all', async(req, res) => {
             // .populate('idUsuario', 'nombre correo')
             // .populate('idAutoBus', 'placa')
             .sort({ fechaDeReporte: -1 });
-        res.status(200).json({ incidencias });
+        res.status(200).json(incidencias);
     } catch (err) {
         console.log(err)
         res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });

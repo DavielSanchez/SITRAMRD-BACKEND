@@ -668,6 +668,7 @@ router.post("/create-payment-intent", async(req, res) => {
  *       500:
  *         description: Error interno del servidor al actualizar la transacción.
  */
+// stripe listen --forward-to http://localhost:3001/wallet/webhook-stripe
 router.post('/webhook-stripe', express.raw({ type: 'application/json' }), async(req, res) => {
     console.log('Webhook recibido');
     const sig = req.headers['stripe-signature'];
