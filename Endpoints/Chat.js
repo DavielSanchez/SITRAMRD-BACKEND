@@ -171,7 +171,7 @@ router.post("/enviar-mensaje", async(req, res) => {
 
         // Validar si el chatId tiene el formato adecuado de ObjectId
         if (!mongoose.Types.ObjectId.isValid(chatId)) {
-            return res.status(400).json({ error: "El chatId proporcionado no es válido" });
+            return res.status(400).json({ error: "El chatId que proporcionaste no es válido" });
         }
 
         const chat = await Chat.findById(chatId);
