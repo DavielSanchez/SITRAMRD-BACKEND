@@ -3,6 +3,7 @@ const router = express.Router();
 const RutaSchema = require("../models/Ruta");
 const AutoBus = require("../models/Autobus");
 const verificarRol = require("../middleware/verificarRol");
+const MetroRuta = require("../models/Metro");
 
 /**
  * @swagger
@@ -343,10 +344,11 @@ router.get('/cercanas', async (req, res) => {
             return res.status(400).json({ message: "Las coordenadas proporcionadas no son válidas" });
         }
 
+        // Realizamos la búsqueda de rutas cercanas
         const rutasCercanas = await RutaSchema.aggregate([
             {
                 $geoNear: {
-                    near: { type: "Point", coordinates: [longitud, latitud] }, // [longitud, latitud] es el formato requerido
+                    near: { type: "Point", coordinates: [latitud, longitud] }, // [longitud, latitud] es el formato requerido
                     distanceField: "distancia",  // El campo donde se almacenará la distancia calculada
                     maxDistance: 10000,  // Limita la distancia máxima (10 km en este caso)
                     spherical: true,  // Usa la geometría esférica para cálculos de distancia
@@ -361,16 +363,235 @@ router.get('/cercanas', async (req, res) => {
             }
         ]);
 
+        // Si no se encuentran rutas cercanas
         if (rutasCercanas.length === 0) {
             return res.status(404).json({ message: "No se encontraron rutas cercanas" });
         }
 
-        return res.status(200).json({ data: rutasCercanas });
+        // Ahora, buscamos la parada más cercana en cada ruta
+        const rutasConParadasCercanas = rutasCercanas.map(ruta => {
+            // Calculamos la parada más cercana en cada ruta
+            const paradaMasCercana = ruta.paradas.map(parada => {
+                const distancia = calcularDistancia(latitud, longitud, parada.ubicacion.coordinates[1], parada.ubicacion.coordinates[0]);
+                return { ...parada, distancia };
+            }).reduce((prev, current) => (prev.distancia < current.distancia) ? prev : current);
+
+            return { ...ruta, paradaMasCercana };
+        });
+
+        return res.status(200).json({ data: rutasConParadasCercanas });
     } catch (error) {
         console.error("Error en el servidor:", error);
         return res.status(500).json({ message: "Hubo un error en el servidor", error: error.message });
     }
 });
+
+// Función para calcular la distancia entre dos puntos (utilizando la fórmula de Haversine)
+function calcularDistancia(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Radio de la Tierra en kilómetros
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distancia = R * c; // Distancia en kilómetros
+    return distancia;
+}
+
+//Este endpoint recoge las 5 paradas mas cercanas
+//que debo hacer? una consulta a la base de datos extraer los datos y por cada dato de cada ruta hacer un calculo para verificar la distancia y hacer un sort de menor a mayor y hacer un slice y pasarlo al front end
+//tengo que verificar alguna forma de que si la de metro esta como por ejemplo a 6km y la de bus a 5 priorizar tal vez la de metro porque vale la pena caminar ese km o con un uber porque tenicamente te ahorras mas tiempo
+// Función para calcular el producto escalar de dos vectores
+function productoEscalar(v1, v2) {
+    return v1.x * v2.x + v1.y * v2.y;
+}
+
+// Endpoint para obtener paradas cercanas en la dirección correcta
+router.get('/PosiblesCercanas', async (req, res) => {
+    try {
+        const { lat, lng, destinoLat, destinoLng, circunstancia } = req.query;
+        const response = [];
+
+        // Vector dirección usuario → destino
+        const vectorDestino = {
+            x: destinoLat - lat,
+            y: destinoLng - lng
+        };
+
+        const busMinimumDistance = 1; // Distancia de inicio de parada de un autobus
+
+        // Consultar rutas de buses
+        const rutas = await RutaSchema.find();
+        rutas.forEach(ruta => {
+            ruta.paradas.forEach(paradaActual => {
+                const latitud = paradaActual.ubicacion.coordinates[0];
+                const longitud = paradaActual.ubicacion.coordinates[1];
+                const distancia = calcularDistancia(latitud, longitud, lat, lng);
+                
+                // Vector dirección usuario → parada
+                const vectorParada = {
+                    x: latitud - lat,
+                    y: longitud - lng
+                };
+
+                // Verificar si la parada está en la dirección correcta
+
+                if(circunstancia === 'inicio'){
+                    if (productoEscalar(vectorDestino, vectorParada) > 0) {
+                        response.push({
+                            tipo: 'bus',
+                            nombreRuta: ruta.nombreRuta,
+                            nombreParada: paradaActual.nombre,
+                            ubicacion: paradaActual.ubicacion.coordinates,
+                            distancia
+                        });
+                    }
+                } else {
+                    response.push({
+                        tipo: 'bus',
+                        nombreRuta: ruta.nombreRuta,
+                        nombreParada: paradaActual.nombre,
+                        ubicacion: paradaActual.ubicacion.coordinates,
+                        distancia
+                    });
+                }
+            });
+        });
+
+        // Consultar rutas de metro
+        const metros = await MetroRuta.find();
+        metros.forEach(metro => {
+            metro.paradas.forEach(paradaActual => {
+                const latitud = paradaActual.ubicacion.coordinates[0];
+                const longitud = paradaActual.ubicacion.coordinates[1];
+                const distancia = calcularDistancia(latitud, longitud, lat, lng);
+                
+                // Vector dirección usuario → parada
+                const vectorParada = {
+                    x: latitud - lat,
+                    y: longitud - lng
+                };
+                
+                if(circunstancia === 'inicio'){
+                    if (productoEscalar(vectorDestino, vectorParada) > 0) {
+                        response.push({
+                            tipo: 'metro',
+                            nombreRuta: metro.nombreRuta,
+                            nombreParada: paradaActual.nombre,
+                            ubicacion: paradaActual.ubicacion.coordinates,
+                            distancia
+                        });
+                    }
+                }else {
+                    response.push({
+                        tipo: 'metro',
+                        nombreRuta: metro.nombreRuta,
+                        nombreParada: paradaActual.nombre,
+                        ubicacion: paradaActual.ubicacion.coordinates,
+                        distancia
+                    });
+                }
+                // Verificar si la parada está en la dirección correcta
+                
+            });
+        });
+
+        // Ordenar por distancia de menor a mayor
+        response.sort((a, b) => a.distancia - b.distancia);
+
+        if (response.length === 0) {
+            return res.status(404).json({ message: "No hay rutas cercanas en la dirección correcta" });
+        }
+
+        res.status(200).json({ message: response });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+//Este endpoint recoge la parada mas cercana al destino del usuario en la que el usuario debe salir despues de tomar al metro en caso de que lo tome
+router.get('/MetroSalida', async (req, res) => {
+    try{
+        const { lat, lng, destinoLat, destinoLng } = req.query;
+        const response = [];
+
+        // Vector dirección usuario → destino
+        const vectorDestino = {
+            x: destinoLat - lat,
+            y: destinoLng - lng
+        };
+
+        const metros = await MetroRuta.find();
+        metros.forEach(metro => {
+            metro.paradas.forEach(paradaActual => {
+                const latitud = paradaActual.ubicacion.coordinates[0];
+                const longitud = paradaActual.ubicacion.coordinates[1];
+                const distancia = calcularDistancia(latitud, longitud, lat, lng);
+                
+                // Vector dirección usuario → parada
+                const vectorParada = {
+                    x: latitud - lat,
+                    y: longitud - lng
+                };
+
+                // Verificar si la parada está en la dirección correcta
+                if (productoEscalar(vectorDestino, vectorParada) > 0) {
+                    response.push({
+                        tipo: 'metro',
+                        nombreRuta: metro.nombreRuta,
+                        nombreParada: paradaActual.nombre,
+                        ubicacion: paradaActual.ubicacion.coordinates,
+                        distancia
+                    });
+                }
+            });
+        });
+
+    } catch(err){
+        res.status(500).json({message: err})
+    }
+});
+
+
+
+//PUEDE QUE SEA LITERALMENTE LO MISMO
+
+
+// router.get('/PosiblesCercanasInicio', async (req,res) =>{
+//     try{
+//         const { destinolat, destinolng } = req.query;
+//         const consulta = await RutaSchema.find()
+//         const response = [];
+//         consulta.map((ruta) =>{
+//             ruta.paradas.map((paradaActual) =>{
+//                 const paradaNombre = paradaActual.nombre
+//                 const ubicacion = paradaActual.ubicacion.coordinates
+//                 const latitud = paradaActual.ubicacion.coordinates[0];
+//                 const longitud = paradaActual.ubicacion.coordinates[1];
+//                 const distancia = calcularDistancia(latitud, longitud, destinolat, destinolng);
+//                 console.log("Nombre de la ruta: "+ ruta.nombreRuta+ " Nombre de la parada "+ paradaNombre+ " latitud y longitud: "+ ubicacion + " La distancia entre los puntos es de KM: "+ distancia);
+//                 if(distancia <= 6){
+//                     response.push({nombreRuta: ruta.nombreRuta, nombreParada: paradaNombre, ubicacion: ubicacion, distancia: distancia});
+//                 }
+//             });
+//         })
+
+//         console.log(response)
+
+//     res.status(200).json({message: consulta})
+//     } catch(err){
+//         res.status(500).json({message: err})
+//     }
+// })
+
+
+
+
+
+
+
 
 /**
  * @swagger
