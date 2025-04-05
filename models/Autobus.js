@@ -17,3 +17,4 @@ const autobusSchema = new Schema({
 autobusSchema.index({ ubicacionActual: "2dsphere" });
 
 module.exports = model("Autobus", autobusSchema);
+//////////
