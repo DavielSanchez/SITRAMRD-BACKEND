@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const RutaSchema = require("../models/Ruta");
+const UserSchema = require('../models/Usuario')
 const AutoBus = require("../models/Autobus");
 const verificarRol = require("../middleware/verificarRol");
 
@@ -56,9 +57,6 @@ const verificarRol = require("../middleware/verificarRol");
  *                           items:
  *                             type: numb
  */
-
-
-
 router.post('/add', async(req, res) => {
     try {
         const { nombreRuta, coordenadas, paradas, Tarifa } = req.body;
@@ -346,6 +344,130 @@ router.get("/get/:id", async(req, res) => {
         res.status(500).json({ message: "Error en el servidor", error: error.message });
     }
 });
+
+/**
+ * @swagger
+ * /ruta/get/asignadas/{userId}:
+ *   get:
+ *     summary: Obtener rutas asignadas a un usuario (datos completos)
+ *     description: Devuelve la información completa de las rutas asignadas a un usuario específico por su ID.
+ *     tags: [Ruta]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: ID del usuario
+ *         schema:
+ *           type: string
+ *           example: "6620c423f2fa7515c8631fc3"
+ *     responses:
+ *       200:
+ *         description: Rutas asignadas encontradas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Rutas asignadas encontradas"
+ *                 rutasAsignadas:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: "661fdd57d9e03c14fcfd490f"
+ *                       nombreRuta:
+ *                         type: string
+ *                         example: "Ruta 1"
+ *                       coordenadas:
+ *                         type: object
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                             example: "LineString"
+ *                           coordinates:
+ *                             type: array
+ *                             items:
+ *                               type: array
+ *                               items:
+ *                                 type: number
+ *                             example: [[-74.0060, 40.7128], [-74.0065, 40.7135]]
+ *                       paradas:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             _id:
+ *                               type: string
+ *                               example: "661fdd57d9e03c14fcfd490e"
+ *                             nombre:
+ *                               type: string
+ *                               example: "Parada 1"
+ *                             ubicacion:
+ *                               type: object
+ *                               properties:
+ *                                 type:
+ *                                   type: string
+ *                                   example: "Point"
+ *                                 coordinates:
+ *                                   type: array
+ *                                   items:
+ *                                     type: number
+ *                                   example: [-74.0060, 40.7128]
+ *                       Tarifa:
+ *                         type: number
+ *                         example: 20
+ *                       fechaCreacion:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-02-19T07:21:26.922Z"
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "La Id proporcionada es inexistente"
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Error en el servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Error al acceder a la base de datos"
+ */
+router.get("/get/asignadas/:userId", async(req, res) => {
+    try {
+        const userId = req.params.userId;
+        const usuario = await UserSchema.findById(userId).populate('rutasAsignadas');
+
+        if (!usuario) {
+            return res.status(404).json({ message: "La Id proporcionada es inexistente" });
+        }
+
+        res.status(200).json({
+            message: "Rutas asignadas encontradas",
+            rutasAsignadas: usuario.rutasAsignadas
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error en el servidor", error: error.message });
+    }
+});
+
 
 
 /**

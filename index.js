@@ -20,6 +20,7 @@ const Usuarios = require('./Endpoints/Usuario')
 const ConsultaDeRutas = require('./Endpoints/ConsultaDeRutas')
 const Autobus = require('./Endpoints/AutoBus')
 const Chat = require('./Endpoints/Chat')
+const Alerta = require('./Endpoints/Alertas')
 
 mongoConnection(process.env.MONGODB_URI)
 
@@ -29,13 +30,17 @@ mongoConnection(process.env.MONGODB_URI)
 app.use(cors({
     // origin: "http://localhost:5173",
     origin: "*",
+    // origin: "https://45sqfwxv-3001.use2.devtunnels.ms",
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'], // Agregar Authorization aquí
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
-app.use(logger('dev'))
+
+app.use(logger('dev'));
 app.use('/wallet/webhook-stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
+
+
 /**
  * @swagger
  * tags:
@@ -54,6 +59,7 @@ app.use('/autobus', Autobus)
 app.use('/usuario', Usuarios)
 app.use('/incidencia', Incidencia)
 app.use('/chat', Chat)
+app.use('/alerta', Alerta)
 
 socketConfig(server)
 

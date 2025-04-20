@@ -1,6 +1,197 @@
 const express = require("express");
 const router = express.Router();
 const IncidenciaSchema = require("../models/Incidencias");
+const UsuarioSchema = require("../models/Usuario")
+const AlertaSchema = require("../models/Alertas")
+const AutobusesSchema = require("../models/Autobus")
+
+
+/**
+ * @swagger
+ * /incidencia/all:
+ *   get:
+ *     summary: Obtener todas las incidencias
+ *     description: Devuelve una lista de todas las incidencias en el sistema.
+ *     tags: [Incidencias]
+ *     responses:
+ *       200:
+ *         description: Lista de incidencias
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 incidencias:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: ID único de la incidencia
+ *                         example: "60f4e3b4d8b9b40015c68409"
+ *                       descripcion:
+ *                         type: string
+ *                         description: Descripción de la incidencia
+ *                         example: "Autobús con retraso debido a condiciones climáticas."
+ *                       idAutobus:  # Cambiado de idRuta a idAutobus
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: ID del autobús asociado
+ *                             example: "605c72ef1532071b7c8c8a12"
+ *                           placa:
+ *                             type: string
+ *                             description: Placa del autobús asociado
+ *                             example: "ABC123"
+ *                       idUsuario:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: ID del usuario que registró la incidencia
+ *                             example: "60f4e3b4d8b9b40015c68408"
+ *                           nombre:
+ *                             type: string
+ *                             description: Nombre del usuario que registró la incidencia
+ *                             example: "Juan Pérez"
+ *                           correo:
+ *                             type: string
+ *                             description: Correo del usuario que registró la incidencia
+ *                             example: "juan.perez@email.com"
+ *                       estado:
+ *                         type: string
+ *                         description: Estado de la incidencia (Pendiente, Resuelto, etc.)
+ *                         example: "Pendiente"
+ *                       fechaDeReporte:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Fecha en que se reportó la incidencia
+ *                         example: "2025-02-19T14:30:00.000Z"
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Hubo un error al obtener las incidencias"
+ *                 error:
+ *                   type: string
+ *                   example: "Error de conexión a la base de datos"
+ */
+router.get('/all', async(req, res) => {
+    try {
+        const incidencias = await IncidenciaSchema.find()
+            // .populate('idUsuario', 'nombre correo')
+            // .populate('idAutoBus', 'placa')
+            .sort({ fechaDeReporte: -1 });
+        res.status(200).json(incidencias);
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });
+    }
+});
+
+router.get("/pendientes/:userId", async(req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // 1. Buscar usuario por ID
+        console.log(userId)
+        const usuario = await UsuarioSchema.findById(userId);
+        if (!usuario) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        // 2. Obtener rutas asignadas al usuario
+        const rutasAsignadas = usuario.rutasAsignadas || [];
+        console.log(rutasAsignadas)
+
+        if (rutasAsignadas.length === 0) {
+            return res.json({ message: 'no rutas', cantidad: 0 });
+        }
+
+        const autobuses = await AutobusesSchema.find({
+            idRuta: { $in: rutasAsignadas }
+        });
+        console.log(autobuses)
+
+
+        const autobusesIds = autobuses.map(b => b._id.toString());
+        console.log(autobusesIds)
+
+        if (autobusesIds.length === 0) {
+            return res.json({ message: 'no buses', cantidad: 0 });
+        }
+
+        const incidenciasPendientes = await IncidenciaSchema.find({
+            idAutoBus: { $in: autobusesIds },
+            estado: "Pendiente"
+        });
+
+        return res.json({
+            message: 'ok',
+            cantidad: incidenciasPendientes.length,
+            incidencias: incidenciasPendientes
+        });
+    } catch (error) {
+        console.error("Error obteniendo incidencias pendientes:", error);
+        res.status(500).json({ error: "Error del servidor" });
+    }
+});
+
+router.get("/proceso/:userId", async(req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // 1. Buscar usuario por ID
+        console.log(userId)
+        const usuario = await UsuarioSchema.findById(userId);
+        if (!usuario) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        // 2. Obtener rutas asignadas al usuario
+        const rutasAsignadas = usuario.rutasAsignadas || [];
+        console.log(rutasAsignadas)
+
+        if (rutasAsignadas.length === 0) {
+            return res.json({ message: 'no rutas', cantidad: 0 });
+        }
+
+        const autobuses = await AutobusesSchema.find({
+            idRuta: { $in: rutasAsignadas }
+        });
+        console.log(autobuses)
+
+
+        const autobusesIds = autobuses.map(b => b._id.toString());
+        console.log(autobusesIds)
+
+        if (autobusesIds.length === 0) {
+            return res.json({ message: 'no buses', cantidad: 0 });
+        }
+
+        const incidenciasProceso = await IncidenciaSchema.find({
+            idAutoBus: { $in: autobusesIds },
+            estado: "En Proceso"
+        });
+
+        return res.json({
+            message: 'ok',
+            cantidad: incidenciasProceso.length,
+            incidencias: incidenciasProceso
+        });
+    } catch (error) {
+        console.error("Error obteniendo incidencias pendientes:", error);
+        res.status(500).json({ error: "Error del servidor" });
+    }
+});
+
 /**
  * @swagger
  * /incidencia/add:
@@ -121,6 +312,43 @@ router.post('/add', async(req, res) => {
     }
 });
 
+router.post('/incidencia/add', async(req, res) => {
+    try {
+        const { titulo, descripcion, tipo, ruta_id } = req.body;
+        const usuario_id = req.user.id;
+
+        const incidencia = new IncidenciaSchema({
+            titulo,
+            descripcion,
+            tipo,
+            creador_id: usuario_id,
+            ruta_id
+        });
+
+        await incidencia.save();
+
+        const operadores = await UsuarioSchema.find({ userRol: "Operador", rutasAsignadas: ruta_id }, "_id");
+        const administradores = await UsuarioSchema.find({ userRol: "Administrador" }, "_id");
+        const destinatarios = [...operadores, ...administradores];
+
+        const alerta = new AlertaSchema({
+            titulo: `Nueva incidencia reportada: ${titulo}`,
+            descripcion,
+            tipo: "incidencia",
+            color: "#FFA500",
+            creador_id: usuario_id,
+            destinatarios: destinatarios.map(u => u._id),
+            tipo_destinatario: "operadores",
+            ruta_id
+        });
+
+        await alerta.save
+        res.status(201).json({ mensaje: "Incidencia reportada y alerta enviada", incidencia });
+
+    } catch (err) {
+        res.status(500).json({ error: "Error al reportar incidencia" });
+    }
+})
 
 /**
  * @swagger
@@ -307,95 +535,6 @@ router.delete('/:id', async(req, res) => {
     }
 });
 
-/**
- * @swagger
- * /incidencia/all:
- *   get:
- *     summary: Obtener todas las incidencias
- *     description: Devuelve una lista de todas las incidencias en el sistema.
- *     tags: [Incidencias]
- *     responses:
- *       200:
- *         description: Lista de incidencias
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 incidencias:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                         description: ID único de la incidencia
- *                         example: "60f4e3b4d8b9b40015c68409"
- *                       descripcion:
- *                         type: string
- *                         description: Descripción de la incidencia
- *                         example: "Autobús con retraso debido a condiciones climáticas."
- *                       idAutobus:  # Cambiado de idRuta a idAutobus
- *                         type: object
- *                         properties:
- *                           _id:
- *                             type: string
- *                             description: ID del autobús asociado
- *                             example: "605c72ef1532071b7c8c8a12"
- *                           placa:
- *                             type: string
- *                             description: Placa del autobús asociado
- *                             example: "ABC123"
- *                       idUsuario:
- *                         type: object
- *                         properties:
- *                           _id:
- *                             type: string
- *                             description: ID del usuario que registró la incidencia
- *                             example: "60f4e3b4d8b9b40015c68408"
- *                           nombre:
- *                             type: string
- *                             description: Nombre del usuario que registró la incidencia
- *                             example: "Juan Pérez"
- *                           correo:
- *                             type: string
- *                             description: Correo del usuario que registró la incidencia
- *                             example: "juan.perez@email.com"
- *                       estado:
- *                         type: string
- *                         description: Estado de la incidencia (Pendiente, Resuelto, etc.)
- *                         example: "Pendiente"
- *                       fechaDeReporte:
- *                         type: string
- *                         format: date-time
- *                         description: Fecha en que se reportó la incidencia
- *                         example: "2025-02-19T14:30:00.000Z"
- *       500:
- *         description: Error en el servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Hubo un error al obtener las incidencias"
- *                 error:
- *                   type: string
- *                   example: "Error de conexión a la base de datos"
- */
-router.get('/all', async(req, res) => {
-    try {
-        const incidencias = await IncidenciaSchema.find()
-            // .populate('idUsuario', 'nombre correo')
-            // .populate('idAutoBus', 'placa')
-            .sort({ fechaDeReporte: -1 });
-        res.status(200).json(incidencias);
-    } catch (err) {
-        console.log(err)
-        res.status(500).json({ message: 'Hubo un error al obtener las incidencias', err });
-    }
-});
 
 
 

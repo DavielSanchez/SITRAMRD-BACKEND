@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Autobus = require("../models/Autobus");
 const RutaSchema = require("../models/Ruta");
+const UserSchema = require("../models/Usuario")
 const verificarRol = require("../middleware/verificarRol");
 const verificarToken = require("../middleware/verificarToken")
 
@@ -199,6 +200,53 @@ router.get("/location/:id", async(req, res) => {
         res.status(500).json({ message: "Error al obtener la ubicación" });
     }
 });
+
+router.get("/count/:userId", async(req, res) => {
+    try {
+        const userId = req.params.userId;
+        const usuario = await UserSchema.findById(userId).populate('rutasAsignadas');
+
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        const rutasIds = usuario.rutasAsignadas.map(r => r._id);
+
+        const cantidadAutobuses = await Autobus.countDocuments({ rutaAsignada: { $in: rutasIds } });
+        const buses = await Autobus.find({ rutaAsignada: { $in: rutasIds } });
+
+        res.status(200).json({
+            message: "Cantidad de autobuses encontrada",
+            cantidadAutobuses: cantidadAutobuses,
+            autobuses: buses
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Error en el servidor",
+            error: error.message
+        });
+    }
+});
+
+router.get("/por-ruta/:rutaId", async(req, res) => {
+    const { rutaId } = req.params;
+    if (!rutaId) return res.status(400).json({ error: "ID de la ruta es requerido" });
+
+    try {
+        const autobuses = await Autobus.find({ "rutaAsignada": rutaId });
+
+        if (autobuses.length === 0) {
+            return res.status(404).json({ error: "No se encontraron autobuses para esta ruta" });
+        }
+
+        res.json(autobuses);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 /**
  * @swagger
@@ -452,23 +500,24 @@ router.post("/asignar", async(req, res) => {
             return res.status(404).json({ message: "Ruta no encontrada" });
         }
 
-        const autoBus = await Autobus.findById(autobusId);
-        console.log(autoBus)
+        const autoBus = await Autobus.findById(autobusId)
         if (!autoBus) {
             return res.status(404).json({ message: "Autobus inexistente" });
+        } else if (autoBus) {
+            console.log('autobus encontrado')
         }
 
-        if (autoBus.idRuta && autoBus.idRuta.toString() === rutaId) {
+        if (autoBus.rutaAsignada && autoBus.rutaAsignada.toString() === rutaId) {
             return res.status(400).json({ message: "Este autobús ya está asignado a esta ruta" });
         }
 
-        autoBus.idRuta = rutaId;
+        autoBus.rutaAsignada = rutaId;
         await autoBus.save();
 
         res.status(200).json({
             message: "Autobús asignado a la ruta correctamente",
-            ruta,
-            autoBus,
+            ruta: rutaId,
+            autoBus: autobusId
         });
     } catch (err) {
         console.error(err);
