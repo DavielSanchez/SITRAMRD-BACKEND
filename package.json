@@ -12,17 +12,28 @@
     "type": "commonjs",
     "description": "",
     "dependencies": {
+        "@eslint/config-array": "^0.19.2",
+        "@eslint/object-schema": "^2.1.6",
+        "@getbrevo/brevo": "^2.2.0",
         "bcryptjs": "^2.4.3",
+        "body-parser": "^1.20.3",
         "cors": "^2.8.5",
+        "crypto": "^1.0.1",
         "dotenv": "^16.4.7",
+        "eslint": "^9.20.1",
         "express": "^4.21.2",
         "jsonwebtoken": "^9.0.2",
         "mongodb": "^6.13.0",
         "mongoose": "^8.10.0",
+        "morgan": "^1.10.0",
+        "nodemailer": "^6.10.0",
         "path": "^0.12.7",
         "sitramrd-backend": "file:",
+        "socket.io": "^4.8.1",
+        "stripe": "^17.7.0",
         "swagger-jsdoc": "^6.2.8",
-        "swagger-ui-express": "^5.0.1"
+        "swagger-ui-express": "^5.0.1",
+        "uuid": "^11.0.5"
     },
     "devDependencies": {
         "nodemon": "^3.1.9"
