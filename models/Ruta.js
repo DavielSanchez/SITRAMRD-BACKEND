@@ -12,7 +12,7 @@ const rutaSchema = new Schema({
         }
     },
     paradas: [{
-        nombre: { type: String, required: true },
+        nombre: { type: String, required: false },
         descripcion: { type: String, required: false },
         ubicacion: {
             type: {

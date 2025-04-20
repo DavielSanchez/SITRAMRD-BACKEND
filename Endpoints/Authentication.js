@@ -117,6 +117,38 @@ router.get('/users/id/:id', (req, res) => {
         })
 })
 
+router.get('/users/team/:id', (req, res) => {
+    const id = req.params.id;
+
+    if (!id) {
+        return res.status(400).json({ message: "ID de usuario no proporcionado" });
+    }
+
+    userSchema
+        .findById(id)
+        .then((user) => {
+            if (!user) {
+                return res.status(404).json({ message: "Usuario no encontrado" });
+            } else if (!user.rutasAsignadas || user.rutasAsignadas.length === 0) {
+                return res.status(204).send();
+            }
+
+            userSchema
+                .find({ rutasAsignadas: user.rutasAsignadas })
+                .then((users) => {
+                    res.json(users);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    res.status(500).json({ message: "Error al buscar los usuarios del equipo" });
+                });
+        })
+        .catch((error) => {
+            console.error(error);
+            res.status(500).json({ message: "Error al buscar el usuario" });
+        });
+});
+
 /**
  * @swagger
  * /auth/users/nombre/{nombre}:
@@ -356,6 +388,12 @@ router.post('/login', async(req, res) => {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
 
+        const updateFields = {
+            lastLogin: Date.now()
+        };
+
+        const resultado = await userSchema.findByIdAndUpdate(user._id, updateFields, { new: false });
+
 
         const payload = {
             id: user._id,
@@ -365,7 +403,7 @@ router.post('/login', async(req, res) => {
             userImage: user.userImage,
             estadoUsuario: user.estadoUsuario,
             theme: user.tema,
-            lastLogin: user.lastLogin
+            lastLogin: Date.now()
         }
 
 

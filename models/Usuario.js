@@ -1,4 +1,4 @@
-const { Schema, model } = require("mongoose");
+const { Schema, model, trusted } = require("mongoose");
 const bcrypt = require("bcryptjs");
 const Salting = 10;
 
@@ -15,12 +15,13 @@ const userSchema = new Schema({
         tarjetaNombre: { type: String, required: false }
     }],
     tarjetasFisicas: [{
-        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasVirtuales' },
+        tarjetaId: { type: Schema.Types.ObjectId, ref: 'tarjetasFisicas' },
     }],
     customerId: { type: String, unique: true },
     estadoUsuario: { type: String, enum: ['activo', 'suspendido'], default: 'activo' },
     tema: { type: String, default: 'light' },
     metodosPago: [{
+        Apodo: { type: String },
         paymentMethodId: { type: String },
         cardType: { type: String },
         last4: { type: String },
@@ -34,6 +35,8 @@ const userSchema = new Schema({
     fechaModificacion: { type: Date, default: Date.now },
     otpCode: { type: String },
     otpTimestamp: { type: Date },
+    payOtpCode: { type: String },
+    payOtpTimeStamp: { type: Date },
 });
 
 

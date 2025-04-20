@@ -3,9 +3,13 @@ const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
 const Stripe = require('stripe')
 const bodyParser = require("body-parser");
+const jwt = require('jsonwebtoken');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
 const stripe_webhook_secret = process.env.STRIPE_WEBHOOK_SECRET
+const SECRET_KEY = process.env.VITE_QR_KEY
+const OTP_EXPIRATION = "5m";
+
 
 const userSchema = require('../models/Usuario');
 const tarjetasVirtualesSchema = require('../models/tarjetasVirtuales');
@@ -448,22 +452,33 @@ router.get('/pagos/:id', (req, res) => {
  *       500:
  *         description: Error en la base de datos.
  */
-router.get('/recargas/user/:userId', (req, res) => {
+router.get('/recargas/user/:userId', async(req, res) => {
+    try {
+        const userId = req.params.userId;
 
-    const userId = req.params.userId;
+        const recargas = await tarjetaTransaccionesSchema.find({ idUsuario: userId, tipo: 'Recarga' });
+        if (!recargas || recargas.length === 0) {
+            return res.status(404).json({ message: "No se encontraron recargas para este usuario." });
+        }
+        const tarjetasIds = [...new Set(recargas.map(r => String(r.tarjetaVirtual)))];
 
-    tarjetaTransaccionesSchema
-        .find({ idUsuario: userId, tipo: 'Recarga' })
-        .then((data) => {
-            if (!data || data.length === 0) {
-                return res.status(404).json({ message: "No se encontraron recargas para este usuario." });
-            }
-            res.json(data);
-        })
-        .catch((error) => {
-            console.error(error);
-            res.status(500).json({ message: "Error al obtener las recargas." });
+        const tarjetas = await tarjetasVirtualesSchema.find({ _id: { $in: tarjetasIds } });
+
+        const tarjetasMap = {};
+        tarjetas.forEach(tarjeta => {
+            tarjetasMap[String(tarjeta._id)] = tarjeta.nombre;
         });
+
+        const recargasConNombre = recargas.map(recarga => ({
+            ...recarga.toObject(),
+            nombreTarjeta: tarjetasMap[String(recarga.tarjetaVirtual)] || "Desconocida"
+        }));
+
+        res.json(recargasConNombre);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error al obtener las recargas." });
+    }
 });
 
 /**
@@ -506,6 +521,146 @@ router.get('/pagos/user/:userId', (req, res) => {
         });
 });
 
+/**
+ * @swagger
+ * /wallet/recarga/tarjeta/{tarjetaVirtual}:
+ *   get:
+ *     summary: Obtener las transacciones de recarga de una tarjeta virtual
+ *     description: Este endpoint devuelve todas las transacciones de recarga realizadas a una tarjeta virtual específica.
+ *     tags:
+ *       - Billetera
+ *     parameters:
+ *       - name: tarjetaVirtual
+ *         in: path
+ *         required: true
+ *         description: El ID de la tarjeta virtual para la cual se desean obtener las transacciones de recarga.
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lista de transacciones de recarga para la tarjeta virtual.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     description: El ID de la transacción.
+ *                     example: "603d9e35f8db3e1a1c85e73c"
+ *                   tarjetaVirtual:
+ *                     type: string
+ *                     description: El ID de la tarjeta virtual asociada a la transacción.
+ *                     example: "1234567890abcdef"
+ *                   tipo:
+ *                     type: string
+ *                     description: El tipo de transacción (por ejemplo, "Recarga").
+ *                     example: "Recarga"
+ *                   monto:
+ *                     type: number
+ *                     description: El monto de la transacción de recarga.
+ *                     example: 100
+ *                   estado:
+ *                     type: string
+ *                     description: El estado de la transacción (por ejemplo, "Completada").
+ *                     example: "Completada"
+ *                   fecha:
+ *                     type: string
+ *                     description: La fecha y hora en la que se realizó la transacción.
+ *                     example: "2025-03-23T12:00:00Z"
+ *       404:
+ *         description: No se encontraron transacciones para la tarjeta virtual especificada.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+router.get('/recarga/tarjeta/:tarjetaVirtual', (req, res) => {
+
+    const tarjetaVirtual = req.params.tarjetaVirtual;
+
+    tarjetaTransaccionesSchema
+        .find({ tarjetaVirtual: tarjetaVirtual, tipo: 'Recarga' })
+        .then((data) => {
+            if (!data || data.length === 0) {
+                return res.status(404).json({ message: "No se encontraron transacciones para este usuario." });
+            }
+            res.json(data);
+        })
+        .catch((error) => {
+            console.error(error);
+            res.status(500).json({ message: "Error al obtener las transacciones." });
+        });
+});
+
+router.get('/pagos/tarjeta/:tarjetaVirtual', (req, res) => {
+
+    const tarjetaVirtual = req.params.tarjetaVirtual;
+
+    tarjetaTransaccionesSchema
+        .find({ tarjetaVirtual: tarjetaVirtual, tipo: 'Pago' })
+        .then((data) => {
+            if (!data || data.length === 0) {
+                console.log("No se encontraron pagos para este usuario.")
+                return res.status(404).json({ message: "No se encontraron pagos para este usuario." });
+            }
+            res.json(data);
+        })
+        .catch((error) => {
+            console.error(error);
+            res.status(500).json({ message: "Error al obtener los pagos." });
+        });
+});
+
+/**
+ * @swagger
+ * /wallet/metodos-pago/{userId}:
+ *   get:
+ *     summary: Obtener los métodos de pago guardados de un usuario
+ *     description: Este endpoint devuelve todos los métodos de pago guardados para un usuario específico. La respuesta incluye los detalles de los métodos de pago guardados en Stripe.
+ *     tags:
+ *       - Billetera
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         description: El ID del usuario del cual se desean obtener los métodos de pago guardados.
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lista de métodos de pago guardados para el usuario.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 metodosPago:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: El ID del método de pago en Stripe.
+ *                         example: "pm_1GqICJ2eZvKYlo2CzCVpLzRh"
+ *                       tipo:
+ *                         type: string
+ *                         description: Tipo de método de pago (por ejemplo, "tarjeta de crédito").
+ *                         example: "tarjeta de crédito"
+ *                       ultimaCuatro:
+ *                         type: string
+ *                         description: Los últimos 4 dígitos de la tarjeta.
+ *                         example: "4242"
+ *                       fechaExpiracion:
+ *                         type: string
+ *                         description: Fecha de expiración del método de pago.
+ *                         example: "12/25"
+ *       404:
+ *         description: El usuario no fue encontrado.
+ *       500:
+ *         description: Error interno del servidor.
+ */
 router.get("/metodos-pago/:userId", async(req, res) => {
     try {
         const usuario = await userSchema.findById(req.params.userId);
@@ -621,6 +776,105 @@ router.post("/create-payment-intent", async(req, res) => {
 
 /**
  * @swagger
+ * /wallet/pay-with-saved-method:
+ *   post:
+ *     summary: Procesar un pago con un método de pago guardado
+ *     description: Este endpoint procesa un pago utilizando un método de pago guardado previamente en Stripe. Se genera un PaymentIntent y se devuelve un `clientSecret` para confirmar el pago desde el frontend.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID del usuario que está realizando el pago.
+ *               amount:
+ *                 type: number
+ *                 description: Monto a pagar, expresado en unidades de la moneda (por ejemplo, 50 para $50).
+ *               currency:
+ *                 type: string
+ *                 description: La moneda en la que se realizará el pago (por ejemplo, "usd").
+ *     responses:
+ *       200:
+ *         description: El pago se procesó correctamente y se generó el PaymentIntent. El `clientSecret` se proporciona para confirmar el pago en el frontend.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indica si el pago y la transacción fueron procesados correctamente.
+ *                   example: true
+ *                 clientSecret:
+ *                   type: string
+ *                   description: Client Secret para confirmar el pago.
+ *                   example: "pi_1234567890_secret_abcdefghij"
+ *       400:
+ *         description: Parámetros inválidos (userId, amount, currency, o paymentMethodId faltante).
+ *       404:
+ *         description: El método de pago guardado no fue encontrado.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+router.post("/pay-with-saved-method", async(req, res) => {
+    try {
+        const { userId, amount, currency, paymentMethodId, tarjetaId } = req.body;
+
+        if (!userId || !amount || !currency || !paymentMethodId) {
+            return res.status(400).json({ error: "Todos los campos son requeridos" });
+        }
+
+        const user = await userSchema.findById(userId);
+        if (!user || !user.customerId) {
+            return res.status(400).json({ error: "No se encontró el customerId para este usuario" });
+        }
+
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        if (paymentMethod.customer !== user.customerId) {
+            return res.status(400).json({ error: "Este método de pago no está asociado al usuario" });
+        }
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount * 100,
+            currency,
+            customer: user.customerId,
+            payment_method: paymentMethodId,
+            automatic_payment_methods: { enabled: true }, // Mantén esto activado
+        });
+
+        if (!paymentIntent.client_secret) {
+            return res.status(500).json({ error: "Stripe no generó un client_secret" });
+        }
+
+        // Guarda la transacción como "Pendiente"
+        const transaccion = new tarjetaTransaccionesSchema({
+            idUsuario: userId,
+            tarjetaVirtual: tarjetaId,
+            tipo: "Recarga",
+            monto: amount,
+            estado: "Pendiente",
+            fecha: new Date(),
+        });
+        await transaccion.save();
+
+        // 📢 Enviar el `client_secret` al frontend para que confirme el pago
+        res.json({
+            success: true,
+            clientSecret: paymentIntent.client_secret,
+        });
+    } catch (error) {
+        console.error("Error en el pago:", error);
+        res.status(500).json({ error: "Error al procesar el pago" });
+    }
+});
+
+/**
+ * @swagger
  * /wallet/webhook-stripe:
  *   post:
  *     summary: Maneja eventos de webhook de Stripe
@@ -680,6 +934,7 @@ router.post('/webhook-stripe', express.raw({ type: 'application/json' }), async(
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, stripe_webhook_secret);
+        console.log("✅ Webhook verificado:", event.type);
     } catch (err) {
         console.error('⚠️  Error verificando webhook:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -706,14 +961,15 @@ router.post('/webhook-stripe', express.raw({ type: 'application/json' }), async(
             }
 
             console.log('✅ Transacción actualizada a Completado:', transaccion);
-            res.json({ success: true, transaccion });
+            return res.json({ success: true, transaccion });
         } catch (error) {
             console.error('❌ Error al actualizar la transacción:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
+            return res.status(500).json({ error: 'Error interno del servidor' });
         }
     } else {
         console.log(`ℹ️ Evento no manejado: ${event.type}`);
-        res.status(400).end();
+        // Enviar 200 para evitar reintentos de Stripe
+        return res.sendStatus(200);
     }
 });
 
@@ -759,7 +1015,9 @@ router.post('/webhook-stripe', express.raw({ type: 'application/json' }), async(
  */
 router.post("/guardar-metodo-pago", async(req, res) => {
     try {
-        const { userId, paymentMethodId } = req.body;
+        const { userId, Apodo, paymentMethodId } = req.body;
+
+        console.log(req.body)
 
         const usuario = await userSchema.findById(userId);
         if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -774,7 +1032,10 @@ router.post("/guardar-metodo-pago", async(req, res) => {
 
         const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
+        console.log("Apodo antes de agregar a metodosPago:", Apodo);
+
         usuario.metodosPago.push({
+            Apodo: req.body.Apodo,
             paymentMethodId,
             cardType: paymentMethod.card.brand,
             last4: paymentMethod.card.last4,
@@ -792,14 +1053,72 @@ router.post("/guardar-metodo-pago", async(req, res) => {
     }
 });
 
+router.post("/generate-otp", async(req, res) => {
+    const { userId, tarjetaId } = req.body;
 
+    if (!userId || !tarjetaId) {
+        return res.status(400).json({ error: "Faltan datos" });
+    }
+
+    try {
+        const user = await userSchema.findById(userId);
+
+        if (!user) {
+            return res.status(400).json({ error: "Usuario no encontrado" });
+        }
+
+        const otpToken = jwt.sign({ userId, tarjetaId }, SECRET_KEY, {
+            expiresIn: 50000,
+        });
+        user.payOtpCode = otpToken;
+        user.payOtpTimeStamp = Date.now();
+        await user.save();
+
+        res.json({ token: otpToken });
+    } catch (err) {
+        console.error("Error en la generación del OTP:", err);
+        res.status(500).json({ error: "Error al generar OTP" });
+    }
+
+})
+
+router.post('/validate-otp', async(req, res) => {
+    const { token } = req.body;
+
+    try {
+        if (!token) {
+            return res.status(400).json({ error: "Faltan datos" });
+        }
+
+        const decoded = jwt.verify(token, SECRET_KEY);
+
+        const user = await Usuario.findById(decoded.userId);
+
+        if (!user) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        const otpExpirationTime = 5 * 60 * 1000;
+        if (Date.now() - user.otpTimestamp > otpExpirationTime) {
+            return res.status(400).json({ error: "OTP expirado" });
+        }
+
+        if (user.otpCode !== token) {
+            return res.status(400).json({ error: "OTP incorrecto" });
+        }
+
+        res.json({ success: true, message: "OTP validado correctamente", data: decoded });
+    } catch (err) {
+        res.status(400).json({ error: "Token inválido o expirado" });
+    }
+})
 
 /**
  * @swagger
  * /wallet/pagar:
  *   post:
  *     summary: Pagar un viaje en autobús/metro
- *     description: Descuenta saldo de la tarjeta virtual del usuario y registra la transacción.
+ *     description: Descuenta saldo de la tarjeta virtual seleccionada del usuario y registra la transacción.
  *     tags:
  *       - Billetera
  *     requestBody:
@@ -811,6 +1130,8 @@ router.post("/guardar-metodo-pago", async(req, res) => {
  *             properties:
  *               userId:
  *                 type: string
+ *               tarjetaId:
+ *                 type: string
  *               amount:
  *                 type: number
  *     responses:
@@ -819,20 +1140,28 @@ router.post("/guardar-metodo-pago", async(req, res) => {
  */
 router.post("/pagar", async(req, res) => {
     try {
-        const { userId, amount } = req.body;
+        const { userId, tarjetaId, amount } = req.body;
 
-        if (!userId || !amount) {
-            return res.status(400).json({ error: "Usuario y monto son requeridos" });
+        if (!userId || !tarjetaId || !amount) {
+            return res.status(400).json({ error: "Usuario, tarjeta y monto son requeridos" });
         }
 
-        let tarjeta = await tarjetasVirtualesSchema.findOne({ idUsuario: userId });
-        if (!tarjeta || tarjeta.saldo < amount) {
-            return res.status(400).json({ error: "Saldo insuficiente" });
+        // Buscamos la tarjeta virtual específica por tarjetaId
+        let tarjeta = await tarjetasVirtualesSchema.findOne({ idUsuario: userId, _id: tarjetaId });
+        if (!tarjeta) {
+            return res.status(404).json({ error: "No se encontró la tarjeta virtual del usuario." });
         }
 
+        // Verificamos si la tarjeta tiene saldo suficiente
+        if (tarjeta.saldo < amount) {
+            return res.status(400).json({ error: "Saldo insuficiente en la tarjeta virtual" });
+        }
+
+        // Descontamos el monto de la tarjeta
         tarjeta.saldo -= amount;
-        await tarjeta.save();
+        await tarjeta.save(); // Guardamos la actualización del saldo
 
+        // Registramos la transacción de pago
         const transaccion = new tarjetaTransaccionesSchema({
             idUsuario: userId,
             tarjetaVirtual: tarjeta._id,
@@ -840,8 +1169,9 @@ router.post("/pagar", async(req, res) => {
             monto: amount,
             estado: "Completado",
         });
-        await transaccion.save();
+        await transaccion.save(); // Guardamos la transacción
 
+        // Respondemos con el saldo actualizado de la tarjeta
         res.json({ success: true, saldoActual: tarjeta.saldo });
     } catch (error) {
         console.error("Error en pago:", error);
@@ -849,13 +1179,12 @@ router.post("/pagar", async(req, res) => {
     }
 });
 
-
 /**
  * @swagger
- * /tarjetas/virtuales/add:
+ * /wallet/tarjetas/virtuales/add:
  *   post:
  *     summary: Agregar una nueva tarjeta virtual
- *     description: Crea y guarda una nueva tarjeta virtual. Si no se proporciona una tarjeta física, se generará un número único para la tarjeta virtual.
+ *     description: Crea y guarda una nueva tarjeta virtual. Si no se proporciona una tarjeta física, se generará un número único para la tarjeta virtual. Si se proporciona una tarjeta física, se creará la tarjeta virtual y se asociará con la tarjeta física, transfiriendo el saldo de la tarjeta física a la virtual.
  *     tags:
  *       - Billetera
  *     requestBody:
@@ -870,7 +1199,7 @@ router.post("/pagar", async(req, res) => {
  *                 description: ID del usuario propietario de la tarjeta virtual.
  *               tarjetaFisica:
  *                 type: string
- *                 description: ID de la tarjeta física asociada (opcional).
+ *                 description: ID de la tarjeta física asociada (opcional). Si se proporciona, el saldo de la tarjeta física se transferirá a la tarjeta virtual.
  *               numeroTarjeta:
  *                 type: string
  *                 description: Número de la tarjeta virtual. Si no se proporciona, se generará uno único.
@@ -887,7 +1216,7 @@ router.post("/pagar", async(req, res) => {
  *                 description: Nombre asociado a la tarjeta (opcional).
  *               saldo:
  *                 type: number
- *                 description: Saldo inicial de la tarjeta (opcional, por defecto 0).
+ *                 description: Saldo inicial de la tarjeta virtual (opcional, por defecto 0).
  *     responses:
  *       201:
  *         description: Tarjeta virtual registrada exitosamente.
@@ -918,32 +1247,47 @@ router.post("/pagar", async(req, res) => {
  *                   type: number
  *                   description: Saldo actual de la tarjeta virtual.
  *       400:
- *         description: Datos inválidos en la solicitud.
+ *         description: La tarjeta física proporcionada no existe o los datos son inválidos.
  *       500:
  *         description: Error interno al guardar la tarjeta virtual.
  */
 router.post('/tarjetas/virtuales/add', async(req, res) => {
     try {
-        const { idUsuario, tarjetaFisica, numeroTarjeta, estadoUsuario, estadoAdmin, nombre, saldo } = req.body;
+        const { idUsuario, numeroTarjeta, nombre } = req.body;
 
         let numeroGenerado = numeroTarjeta;
+        let saldoInicial = 0;
 
-        if (!tarjetaFisica) {
+        if (numeroTarjeta) {
+            const tarjetaFisicaExistente = await tarjetasFisicasSchema.findOne({
+                numeroTarjeta
+            });
+            if (!tarjetaFisicaExistente) {
+                return res.status(400).json({ message: "La tarjeta física proporcionada no existe." });
+            }
+            saldoInicial = tarjetaFisicaExistente.saldo;
+        } else {
             numeroGenerado = 'V-' + await generarNumeroTarjetaUnico();
         }
 
+        const cantidadTarjetas = await tarjetasVirtualesSchema.countDocuments({ idUsuario });
+
         const nuevaTarjeta = new tarjetasVirtualesSchema({
             idUsuario,
-            tarjetaFisica: tarjetaFisica || null,
+            tarjetaFisica: numeroTarjeta ? tarjetaFisicaExistente._id : null,
             numeroTarjeta: numeroGenerado,
-            estadoUsuario: estadoUsuario || "Activa",
-            estadoAdmin: estadoAdmin || "Activa",
             nombre: nombre || "",
-            saldo: saldo || 0,
+            saldo: saldoInicial,
+            principal: cantidadTarjetas === 0
         });
 
         const tarjetaGuardada = await nuevaTarjeta.save();
-        res.status(201).json(tarjetaGuardada);
+
+        res.status(201).json({
+            message: "Tarjeta virtual registrada exitosamente.",
+            tarjeta: tarjetaGuardada
+        });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Error al registrar la tarjeta virtual." });
@@ -955,7 +1299,7 @@ router.post('/tarjetas/virtuales/add', async(req, res) => {
  * /tarjetas/fisicas/add:
  *   post:
  *     summary: Agregar una nueva tarjeta física
- *     description: Crea y guarda una nueva tarjeta física. El número de la tarjeta debe ser único y será proporcionado manualmente.
+ *     description: Crea y guarda una nueva tarjeta física. Esta tarjeta será proporcionada a los usuarios cuando se adquieran.
  *     tags:
  *       - Billetera
  *     requestBody:
@@ -965,12 +1309,9 @@ router.post('/tarjetas/virtuales/add', async(req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               idUsuario:
- *                 type: string
- *                 description: ID del usuario propietario de la tarjeta física.
  *               numeroTarjeta:
  *                 type: string
- *                 description: Número único de la tarjeta física.
+ *                 description: Número único de la tarjeta física que se va a agregar.
  *               estadoUsuario:
  *                 type: string
  *                 enum: [Activa, Inactiva]
@@ -979,9 +1320,6 @@ router.post('/tarjetas/virtuales/add', async(req, res) => {
  *                 type: string
  *                 enum: [Activa, Bloqueada]
  *                 description: Estado administrativo de la tarjeta (opcional, por defecto "Activa").
- *               nombre:
- *                 type: string
- *                 description: Nombre asociado a la tarjeta (opcional).
  *               saldo:
  *                 type: number
  *                 description: Saldo inicial de la tarjeta (opcional, por defecto 0).
@@ -996,9 +1334,6 @@ router.post('/tarjetas/virtuales/add', async(req, res) => {
  *                 id:
  *                   type: string
  *                   description: ID único de la tarjeta física registrada.
- *                 idUsuario:
- *                   type: string
- *                   description: ID del usuario propietario de la tarjeta.
  *                 numeroTarjeta:
  *                   type: string
  *                   description: Número de la tarjeta física.
@@ -1018,7 +1353,7 @@ router.post('/tarjetas/virtuales/add', async(req, res) => {
  */
 router.post('/tarjetas/fisicas/add', async(req, res) => {
     try {
-        const { idUsuario, numeroTarjeta, estadoUsuario, estadoAdmin, nombre, saldo } = req.body;
+        const { numeroTarjeta, estadoUsuario, estadoAdmin, saldo } = req.body;
 
         const tarjetaExistente = await tarjetasFisicasSchema.findOne({ numeroTarjeta });
 
@@ -1027,7 +1362,6 @@ router.post('/tarjetas/fisicas/add', async(req, res) => {
         }
 
         const nuevaTarjetaFisica = new tarjetasFisicasSchema({
-            idUsuario,
             numeroTarjeta,
             estadoUsuario: estadoUsuario || "Activa",
             estadoAdmin: estadoAdmin || "Activa",
@@ -1036,29 +1370,101 @@ router.post('/tarjetas/fisicas/add', async(req, res) => {
 
         const tarjetaFisicaGuardada = await nuevaTarjetaFisica.save();
 
-        const nuevaTarjetaVirtual = new tarjetasVirtualesSchema({
-            idUsuario,
-            tarjetaFisica: tarjetaFisicaGuardada._id,
-            numeroTarjeta: numeroTarjeta,
-            estadoUsuario: estadoUsuario || "Activa",
-            estadoAdmin: estadoAdmin || "Activa",
-            nombre: nombre || "",
-            saldo: saldo || 0,
-        });
-
-        const tarjetaVirtualGuardada = await nuevaTarjetaVirtual.save();
-
         res.status(201).json(tarjetaFisicaGuardada);
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            message: "Tarjeta física y virtual creadas correctamente.",
-            tarjetaFisica: tarjetaFisicaGuardada,
-            tarjetaVirtual: tarjetaVirtualGuardada
-        });
+        res.status(500).json({ message: "Error interno al guardar la tarjeta física." });
     }
 });
 
+/**
+ * @swagger
+ * /wallet/tarjetas/set-principal:
+ *   post:
+ *     summary: Establecer una tarjeta como principal
+ *     description: Este endpoint permite al usuario establecer una tarjeta virtual como su tarjeta principal, desmarcando previamente cualquier otra tarjeta que esté marcada como principal.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               usuarioId:
+ *                 type: string
+ *                 description: El ID del usuario que desea establecer una tarjeta principal.
+ *                 example: "605c72ef153207001f72a0b"
+ *               tarjetaId:
+ *                 type: string
+ *                 description: El ID de la tarjeta que se marcará como principal.
+ *                 example: "603d9e35f8db3e1a1c85e73c"
+ *     responses:
+ *       200:
+ *         description: La tarjeta fue marcada exitosamente como principal.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indica si la operación fue exitosa.
+ *                   example: true
+ *                 tarjetaPrincipal:
+ *                   type: object
+ *                   description: Detalles de la tarjeta marcada como principal.
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: El ID de la tarjeta.
+ *                       example: "603d9e35f8db3e1a1c85e73c"
+ *                     principal:
+ *                       type: boolean
+ *                       description: Si la tarjeta es ahora la principal.
+ *                       example: true
+ *                     saldo:
+ *                       type: number
+ *                       description: El saldo de la tarjeta.
+ *                       example: 1000
+ *       400:
+ *         description: Faltan parámetros necesarios en la solicitud (usuarioId o tarjetaId).
+ *       404:
+ *         description: No se encontraron tarjetas para el usuario o la tarjeta no fue encontrada.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+router.post('/tarjetas/set-principal', async(req, res) => {
+    const { usuarioId, tarjetaId } = req.body;
+
+    if (!usuarioId || !tarjetaId) {
+        return res.status(400).json({ error: 'Faltan parámetros' });
+    }
+
+    try {
+        const tarjetasActualizadas = await tarjetasVirtualesSchema.updateOne({ idUsuario: usuarioId, principal: true }, { $set: { principal: false } });
+
+        if (tarjetasActualizadas.modifiedCount === 0) {
+            console.log('1')
+            return res.status(404).json({ error: 'No se encontraron tarjetas para el usuario' });
+        }
+
+        const tarjetaPrincipal = await tarjetasVirtualesSchema.findByIdAndUpdate(
+            tarjetaId, { $set: { principal: true } }, { new: true }
+        );
+
+        if (!tarjetaPrincipal) {
+            console.log('2')
+            return res.status(404).json({ error: 'Tarjeta no encontrada' });
+        }
+
+        return res.json({ success: true, tarjetaPrincipal });
+    } catch (error) {
+        console.error('Error al establecer la tarjeta principal:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 router.put('/tarjetas/virtual/:id', async(req, res) => {
 
@@ -1068,6 +1474,122 @@ router.put('/tarjetas/fisica/:id', async(req, res) => {
 
 })
 
+/**
+ * @swagger
+ * /wallet/bloquear-tarjeta/{tarjetaId}:
+ *   put:
+ *     summary: Bloquear o desbloquear una tarjeta virtual del usuario
+ *     description: Permite a un usuario bloquear o desbloquear su tarjeta virtual. Si la tarjeta está activa, se bloquea. Si está inactiva, se activa.
+ *     tags:
+ *       - Billetera
+ *     parameters:
+ *       - in: path
+ *         name: tarjetaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la tarjeta virtual a bloquear o desbloquear.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID del usuario dueño de la tarjeta.
+ *     responses:
+ *       200:
+ *         description: Tarjeta bloqueada o desbloqueada exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Solicitud incorrecta (faltan datos).
+ *       404:
+ *         description: Tarjeta no encontrada o no pertenece al usuario.
+ *       500:
+ *         description: Error interno del servidor.
+ */
+router.put("/bloquear-tarjeta/:tarjetaId", async(req, res) => {
+    try {
+        const { tarjetaId } = req.params;
+        const { userId } = req.body; // Para verificar que el usuario es dueño de la tarjeta
+
+        if (!tarjetaId || !userId) {
+            return res.status(400).json({ error: "Tarjeta y usuario son requeridos" });
+        }
+
+        let tarjeta = await tarjetasVirtualesSchema.findOne({ _id: tarjetaId, idUsuario: userId });
+
+        if (!tarjeta) {
+            return res.status(404).json({ error: "Tarjeta no encontrada o no pertenece al usuario" });
+        }
+
+        // Alternar estado de la tarjeta (si está Activa -> Inactiva, si está Inactiva -> Activa)
+        tarjeta.estadoUsuario = tarjeta.estadoUsuario === "Activa" ? "Inactiva" : "Activa";
+        await tarjeta.save();
+
+        res.json({
+            success: true,
+            message: `Tarjeta ${tarjeta.estadoUsuario === "Activa" ? "desbloqueada" : "bloqueada"} exitosamente`
+        });
+
+    } catch (error) {
+        console.error("Error al actualizar el estado de la tarjeta:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+});
+
+/**
+ * @swagger
+ * /wallet/eliminar-metodo-pago:
+ *   delete:
+ *     summary: Eliminar un método de pago del usuario
+ *     description: Este endpoint elimina un método de pago guardado del usuario, tanto de su perfil en la base de datos como de Stripe.
+ *     tags:
+ *       - Billetera
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: El ID del usuario cuyo método de pago será eliminado.
+ *                 example: "605c72ef153207001f72a0b"
+ *               paymentMethodId:
+ *                 type: string
+ *                 description: El ID del método de pago que será eliminado.
+ *                 example: "pm_1Hzd57J2Vdb5JSj88btTvnWy"
+ *     responses:
+ *       200:
+ *         description: Método de pago eliminado exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensaje:
+ *                   type: string
+ *                   description: Mensaje de confirmación.
+ *                   example: "Método de pago eliminado exitosamente"
+ *       400:
+ *         description: Faltan parámetros necesarios en la solicitud (userId o paymentMethodId).
+ *       404:
+ *         description: Usuario no encontrado o el método de pago no existe.
+ *       500:
+ *         description: Error interno del servidor al intentar eliminar el método de pago.
+ */
 router.delete("/eliminar-metodo-pago", async(req, res) => {
     try {
         const { userId, paymentMethodId } = req.body;
@@ -1089,8 +1611,53 @@ router.delete("/eliminar-metodo-pago", async(req, res) => {
     }
 });
 
-router.delete('/tarjeta/virtual/:id', async(req, res) => {
-
+/**
+ * @swagger
+ * /wallet/tarjeta/virtual/delete/{id}:
+ *   delete:
+ *     summary: Eliminar una tarjeta virtual
+ *     description: Este endpoint elimina una tarjeta virtual del sistema.
+ *     tags:
+ *       - Billetera
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: El ID de la tarjeta virtual a eliminar.
+ *         schema:
+ *           type: string
+ *           example: "605c72ef153207001f72a0b"
+ *     responses:
+ *       200:
+ *         description: La tarjeta virtual fue eliminada exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 acknowledged:
+ *                   type: boolean
+ *                   description: Indicador de si la operación fue exitosa.
+ *                   example: true
+ *                 deletedCount:
+ *                   type: integer
+ *                   description: Número de tarjetas eliminadas.
+ *                   example: 1
+ *       404:
+ *         description: No se encontró la tarjeta virtual con el ID proporcionado.
+ *       500:
+ *         description: Error interno del servidor al intentar eliminar la tarjeta virtual.
+ */
+router.delete('/tarjeta/virtual/delete/:id', async(req, res) => {
+    const id = req.params.id
+    tarjetasVirtualesSchema
+        .deleteOne({ _id: id })
+        .then((data) => {
+            res.json(data)
+        })
+        .catch((error) => {
+            console.error(error)
+        })
 })
 
 router.delete('/tarjeta/fisica/:id', async(req, res) => {
