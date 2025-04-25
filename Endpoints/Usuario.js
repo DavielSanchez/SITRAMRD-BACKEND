@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const verificarRol = require('../middleware/verificarRol');
 const userSchema = require('../models/Usuario');
+const RutaSchema = require('../models/Ruta');
 
 /**
  * @swagger
@@ -118,6 +119,39 @@ router.put('/asignar/:id/:rol', verificarRol(["Administrador"]), async(req, res)
         return res.status(500).json({ message: "Hubo un error en el servidor", error });
     }
 });
+
+router.post('/ruta/:id/:idRuta', verificarRol(["Administrador"]), async(req,res) =>{
+    try{
+        const { id, idRuta } = req.params;
+
+        if(!id){
+            return res.status(404).json({ message: "No proporcionaste un usuario"});
+        }
+
+        if(!idRuta){
+            return res.status(404).json({message: "No proporcionaste una ruta"})
+        }
+
+        const consulta = RutaSchema.findById(idRuta);
+        const usuario = userSchema.findById(id);
+
+        if(!consulta){
+            return res.status(404).json({message: "Ruta inexsitente"})
+        }
+
+        if(!usuario){
+            return res.status(404).json({message: "No es un usuario valido"})
+        }
+
+        usuario.rutasAsignadas = consulta._id;
+        await usuario.save()
+
+        res.status(200).json({message: "Ruta agregada con exito", usuario});
+
+    } catch (err) {
+        return res.status(500).json({message: "error en el server", err})
+    }
+})
 
 /**
  * @swagger
