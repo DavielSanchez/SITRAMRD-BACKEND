@@ -199,4 +199,84 @@ router.get('/operadores', verificarRol(["Administrador"]), async(req, res) => {
     }
 });
 
+// Endpoint para editar nombre y correo (permitido para todos los roles)
+router.put('/editarPerfil', verificarRol(["Administrador", "Pasajero", "Operador", "Conductor"]), async (req, res) => {
+    const { nombre, correo } = req.body;
+    const userId = req.user.id; // Se obtiene del JWT o sesión del usuario autenticado
+  
+    try {
+      // Verificar si el correo es único
+      const existingUser = await userSchema.findOne({ correo });
+      if (existingUser && existingUser._id.toString() !== userId) {
+        return res.status(400).json({ message: "El correo ya está en uso" });
+      }
+  
+      // Actualizar nombre y correo
+      const updatedUser = await userSchema.findByIdAndUpdate(
+        userId,
+        { nombre, correo },
+        { new: true }
+      );
+      
+      return res.status(200).json({ message: "Perfil actualizado", user: updatedUser });
+    } catch (err) {
+      return res.status(500).json({ message: "Hubo un error en el servidor", error: err.message });
+    }
+  });
+  
+  // Endpoint para cambiar la contraseña (permitido para todos los roles)
+  router.put('/cambiarContraseña', verificarRol(["Administrador", "Pasajero", "Operador", "Conductor"]), async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id; // Se obtiene del JWT o sesión del usuario autenticado
+  
+    try {
+      const user = await userSchema.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+  
+      // Verificar si la contraseña actual es correcta
+      const isPasswordCorrect = await user.isCorrectPassword(currentPassword, (error, result) => {
+        if (error) {
+          return res.status(500).json({ message: "Error al verificar la contraseña" });
+        }
+        return result;
+      });
+  
+      if (!isPasswordCorrect) {
+        return res.status(400).json({ message: "La contraseña actual es incorrecta" });
+      }
+  
+      // Actualizar la contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.contraseña = hashedPassword;
+      await user.save();
+  
+      return res.status(200).json({ message: "Contraseña actualizada correctamente" });
+    } catch (err) {
+      return res.status(500).json({ message: "Hubo un error en el servidor", error: err.message });
+    }
+  });
+  
+  // Endpoint para actualizar la imagen de usuario (permitido para todos los roles)
+  router.put('/actualizarImagen', verificarRol(["Administrador", "Pasajero", "Operador", "Conductor"]), async (req, res) => {
+    const { userImage } = req.body;
+    const userId = req.user.id; // Se obtiene del JWT o sesión del usuario autenticado
+  
+    try {
+      const user = await userSchema.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+  
+      // Actualizar la imagen del usuario
+      user.userImage = userImage;
+      await user.save();
+  
+      return res.status(200).json({ message: "Imagen actualizada correctamente", userImage });
+    } catch (err) {
+      return res.status(500).json({ message: "Hubo un error en el servidor", error: err.message });
+    }
+  });
+
 module.exports = router;
