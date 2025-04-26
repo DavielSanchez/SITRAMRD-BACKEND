@@ -61,7 +61,7 @@ const verificarRol = require("../middleware/verificarRol");
 
 router.post('/add', async(req, res) => {
     try {
-        const { nombreRuta, coordenadas, paradas, Tarifa } = req.body;
+        const { nombreRuta, coordenadas, paradas, Tarifa, tipo } = req.body;
         console.log(nombreRuta, coordenadas, paradas, Tarifa);
 
         // Validación de parámetros requeridos
@@ -76,6 +76,7 @@ router.post('/add', async(req, res) => {
             coordenadas,
             paradas,
             Tarifa: Tarifa,
+            tipo: tipo,
             fechaCreacion: Date.now(),
         });
 
