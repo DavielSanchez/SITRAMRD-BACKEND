@@ -113,13 +113,10 @@ const verificarRol = require("../middleware/verificarRol");
  *                   type: string
  *                   example: "Hubo un error en el servidor"
  */
-
-
-
-router.get('/buscar', async (req, res) => {
+router.get('/buscar', async(req, res) => {
     try {
-        const { nombre } = req.query; 
-        
+        const { nombre } = req.query;
+
         if (!nombre) {
             return res.status(400).json({ message: "No proporcionaste un nombre válido" });
         }
@@ -127,7 +124,7 @@ router.get('/buscar', async (req, res) => {
         const resultado = await RutaSchema.findOne({ nombreRuta: nombre });
 
         if (!resultado) {
-            return res.status(404).json({ message: `No se encontró ningún resultado con la ruta: ${nombre}`});
+            return res.status(404).json({ message: `No se encontró ningún resultado con la ruta: ${nombre}` });
         }
 
         return res.status(200).json({ message: "Resultado encontrado", data: resultado });
@@ -214,21 +211,20 @@ router.get('/buscar', async (req, res) => {
  *                   type: string
  *                   example: "Hubo un error en el servidor"
  */
+router.get('/paradas/:id', async(req, res) => {
 
-router.get('/paradas/:id', async (req,res) =>{
-
-    try{
-        const {id} = req.params;
+    try {
+        const { id } = req.params;
         if (!id) {
             return res.status(400).json({ message: "No proporcionaste un id válido" });
         }
         const resultado = await RutaSchema.findById(id);
         if (!resultado) {
-            return res.status(404).json({ message: `No se encontró ningún resultado con el id: ${id}`});
+            return res.status(404).json({ message: `No se encontró ningún resultado con el id: ${id}` });
         }
         const paradas = resultado.paradas;
-        return res.status(200).json({data: paradas });
-    } catch (error){
+        return res.status(200).json({ data: paradas });
+    } catch (error) {
         return res.status(500).json({ message: "Hubo un error en el servidor", error });
     }
 
@@ -267,8 +263,6 @@ function calcularTiempoEstimado(paradaA, paradaB) {
 
     return tiempoEstimado;
 }
-
-
 
 
 //Este endpoint recoge las 5 paradas mas cercanas
@@ -476,9 +470,7 @@ function productoEscalar(v1, v2) {
  *                   type: string
  *                   example: "Error al obtener autobuses desde la base de datos"
  */
-
-
-router.get("/autobuses/:id", async (req, res) => {
+router.get("/autobuses/:id", async(req, res) => {
     try {
         const routeId = req.params.id;
 
@@ -598,11 +590,8 @@ router.get("/autobuses/:id", async (req, res) => {
  *                 error:
  *                   type: string
  *                   example: "Error al actualizar la tarifa de la ruta"
- */ 
-
-
-
-router.patch("/tarifa/:id", verificarRol(["Administrador"]), async (req, res) => {
+ */
+router.patch("/tarifa/:id", verificarRol(["Administrador"]), async(req, res) => {
     try {
         const routeId = req.params.id;
         const { tarifa } = req.body;

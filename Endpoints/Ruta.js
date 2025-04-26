@@ -55,21 +55,21 @@ const verificarRol = require("../middleware/verificarRol");
  *                           type: array
  *                           items:
  *                             type: numb
-*/
+ */
 
 
 
-router.post('/add', async (req, res) => {
+router.post('/add', async(req, res) => {
     try {
         const { nombreRuta, coordenadas, paradas, Tarifa, tipo } = req.body;
         console.log(nombreRuta, coordenadas, paradas, Tarifa);
 
         // Validación de parámetros requeridos
         if (!nombreRuta || !coordenadas || !paradas || Tarifa === undefined) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: `Faltan parámetros requeridos: nombreRuta, coordenadas, paradas o tarifa: ${nombreRuta} ${JSON.stringify(coordenadas)} ${JSON.stringify(paradas)} ${Tarifa}`,
             });
-        }        
+        }
 
         const ruta = new RutaSchema({
             nombreRuta,
@@ -392,7 +392,7 @@ router.get("/get/:id", async(req, res) => {
  *                           type: array
  *                           items:
  *                             type: number
- *                             example: [-74.0060, 40.7128]  # Coordenadas de la parada
+ *                             example: [-74.0060, 40.7128]  # Coordenadas de la parada                                                                                                                              
  *               coordenadas:
  *                 type: array
  *                 items:
@@ -518,7 +518,7 @@ router.get("/get/:id", async(req, res) => {
  *                   type: string
  *                   example: "Error al actualizar en la base de datos"
  */
-router.put("/update/:id", async (req, res) => {
+router.put("/update/:id", async(req, res) => {
     try {
         const routeId = req.params.id;
         const { nombreRuta, paradas, coordenadas, Tarifa } = req.body;
