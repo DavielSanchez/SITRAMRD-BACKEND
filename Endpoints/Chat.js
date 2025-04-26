@@ -67,8 +67,27 @@ router.get("/obtener-mensajes/:chatId", async(req, res) => {
     }
 });
 
+router.get("/obtener-mensajes/no-leidos/:userId", async(req, res) => {
+    try {
+        const { userId } = req.params;
 
+        const mensajesNoLeidos = await Mensaje.find({
+            receptores: { $in: [userId] },
+            $or: [
+                { leidoPor: { $size: 0 } },
+                { "leidoPor.userId": { $ne: userId } }
+            ]
+        }).sort({ enviadoEn: 1 });
 
+        if (mensajesNoLeidos.length === 0) {
+            return res.status(404).json({ message: "No hay mensajes no leídos para este usuario" });
+        }
+
+        res.status(200).json(mensajesNoLeidos);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 router.post('/obtener-chat-por-usuarios', async(req, res) => {
     const { emisor, receptor } = req.body;
@@ -88,7 +107,6 @@ router.post('/obtener-chat-por-usuarios', async(req, res) => {
         res.status(500).json({ message: "Error en el servidor" });
     }
 });
-
 
 router.post("/obtener-chat-privados", async(req, res) => {
     const { emisor, receptor } = req.body;
@@ -110,9 +128,6 @@ router.post("/obtener-chat-privados", async(req, res) => {
         res.status(500).json({ error: "Error interno del servidor" });
     }
 });
-
-
-
 
 router.post("/crear-chat", async(req, res) => {
     try {

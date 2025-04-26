@@ -73,6 +73,42 @@ router.get("/all", async(req, res) => {
     }
 });
 
+// router.get("/choferes/all", async(req, res) => {
+//     try {
+//         const autobuses = await UserSchema.find({
+//             userRol: "Conductor"
+//         }).populate("autobusAsignado", {
+//             _id: 1,
+//             placa: 1,
+//             modelo: 1,
+//             capacidad: 1,
+//             estado: 1,
+//             ubicacionActual: 1
+//         });
+//         res.json(autobuses);
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+
+router.get("/choferes/all", async(req, res) => {
+    try {
+        const choferes = await UserSchema.find({ userRol: "Conductor" });
+
+        const resultados = await Promise.all(choferes.map(async(chofer) => {
+            const autobus = await Autobus.findOne({ conductorAsignado: chofer._id }).select("placa modelo capacidad estado ubicacionActual");
+            return {
+                ...chofer.toObject(),
+                autobusAsignado: autobus || null
+            };
+        }));
+
+        res.json(resultados);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 /**
  * @swagger
  * /autobus/{id}:
@@ -148,6 +184,8 @@ router.get("/:id", async(req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 /**
  * @swagger
@@ -369,6 +407,26 @@ router.post("/add", async(req, res) => {
         res.status(500).json({ message: "Error al agregar el autobús", error: error.message });
     }
 });
+
+router.post("/chofer/asignar", async(req, res) => {
+    try {
+        const { idChofer, autobusId } = req.body;
+        console.log(idChofer, ' ', autobusId)
+
+        const chofer = await UserSchema.findById(idChofer)
+        const bus = await Autobus.findById(autobusId)
+        if (!chofer) {
+            return res.status(404).json({ message: "Chofer inexistente" });
+        } else if (chofer && bus.conductorAsignado !== chofer._id) {
+            bus.conductorAsignado = chofer._id;
+            await bus.save();
+        }
+
+    } catch (error) {
+        console.error("Error al asignar el chofer:", error);
+        res.status(500).json({ message: "Error al asignar el chofer", error: error.message });
+    }
+})
 
 /**
  * @swagger

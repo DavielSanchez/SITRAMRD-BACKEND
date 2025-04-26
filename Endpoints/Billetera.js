@@ -242,8 +242,9 @@ router.get('/user/tarjetas/virtuales/:userId', (req, res) => {
             res.json(data)
         })
         .catch((error) => {
-            console.error(error)
-        })
+            console.error(error);
+            res.status(500).json({ error: 'Error al obtener las tarjetas virtuales' });
+        });
 })
 
 /**
@@ -458,7 +459,7 @@ router.get('/recargas/user/:userId', async(req, res) => {
 
         const recargas = await tarjetaTransaccionesSchema.find({ idUsuario: userId, tipo: 'Recarga' });
         if (!recargas || recargas.length === 0) {
-            return res.status(404).json({ message: "No se encontraron recargas para este usuario." });
+            return res.status(204).json({ message: "No se encontraron recargas para este usuario." });
         }
         const tarjetasIds = [...new Set(recargas.map(r => String(r.tarjetaVirtual)))];
 
@@ -583,7 +584,7 @@ router.get('/recarga/tarjeta/:tarjetaVirtual', (req, res) => {
         .find({ tarjetaVirtual: tarjetaVirtual, tipo: 'Recarga' })
         .then((data) => {
             if (!data || data.length === 0) {
-                return res.status(404).json({ message: "No se encontraron transacciones para este usuario." });
+                return res.status(204).json({ message: "No se encontraron transacciones para este usuario." });
             }
             res.json(data);
         })
@@ -602,7 +603,7 @@ router.get('/pagos/tarjeta/:tarjetaVirtual', (req, res) => {
         .then((data) => {
             if (!data || data.length === 0) {
                 console.log("No se encontraron pagos para este usuario.")
-                return res.status(404).json({ message: "No se encontraron pagos para este usuario." });
+                return res.status(204).json({ message: "No se encontraron pagos para este usuario." });
             }
             res.json(data);
         })

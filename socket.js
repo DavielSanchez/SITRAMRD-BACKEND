@@ -47,6 +47,7 @@ module.exports = (server) => {
                 }
             }
         });
+        
 
         // socket.on("nueva-alerta", async(alertaData) => {
         //     try {
@@ -234,16 +235,65 @@ module.exports = (server) => {
 
 
         // 🔹 Manejo de mensajes
-        socket.on("nuevo-mensaje", async(mensajeData) => {
-            try {
-                const nuevoMensaje = new Mensaje(mensajeData);
-                await nuevoMensaje.save();
 
-                io.emit("mensaje-recibido", nuevoMensaje);
+        socket.on("join-mensaje-room", ({ userId }) => {
+            socket.join(`user-${userId}`);
+            console.log(`Usuario ${userId} se unió a la sala de mensajes`);
+          });
+
+          socket.on("connect", () => {
+            console.log("✅ Socket conectado:", socket.id);
+          });
+
+          socket.on("nuevo-mensaje", async(mensajeData) => {
+            try {
+              const nuevoMensaje = new Mensaje(mensajeData);
+              await nuevoMensaje.save();
+          
+              const { receptores } = mensajeData;
+          
+              for (const receptor of receptores) {
+                io.to(`user-${receptor}`).emit("nuevo-mensaje", nuevoMensaje);
+          
+                // También actualizamos el contador de no leídos
+                const mensajesNoLeidos = await Mensaje.find({
+                  receptores: receptor,
+                  leidoPor: { $ne: receptor },
+                });
+          
+                io.to(`user-${receptor}`).emit("mensajesNoLeidosCount", mensajesNoLeidos.length);
+              }
             } catch (error) {
-                console.error("Error al guardar el mensaje:", error);
+              console.error("Error al manejar nuevo mensaje:", error);
             }
+          });
+
+        socket.on("getMensajesNoLeidosCount", async ({ userId }) => {
+      try {
+        const mensajesNoLeidos = await Mensaje.find({
+          receptores: userId,
+          leidoPor: { $ne: userId },
         });
+        io.to(`user-${userId}`).emit("mensajesNoLeidosCount", mensajesNoLeidos.length);
+      } catch (error) {
+        console.error("Error al contar mensajes no leídos:", error);
+      }
+    });
+
+    socket.on("nuevo-mensaje-creado", async (mensaje) => {
+        const { receptores } = mensaje;
+  
+        for (const receptor of receptores) {
+          io.to(`user-${receptor}`).emit("nuevo-mensaje", mensaje);
+  
+          // También se puede actualizar el contador en tiempo real
+          const mensajesNoLeidos = await Mensaje.find({
+            receptores: receptor,
+            leidoPor: { $ne: receptor },
+          });
+          io.to(`user-${receptor}`).emit("mensajesNoLeidosCount", mensajesNoLeidos.length);
+        }
+      });
 
         socket.on("marcar-como-leido", async({ mensajeId, usuarioId }) => {
             try {
@@ -279,6 +329,8 @@ module.exports = (server) => {
             }
         });
 
-        socket.on("disconnect", () => {});
+        socket.on("disconnect", () => {
+            console.log("❌ Socket desconectado");
+          });
     });
 };

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const verificarRol = require('../middleware/verificarRol');
 const userSchema = require('../models/Usuario');
+const RutaSchema = require('../models/Ruta');
 
 /**
  * @swagger
@@ -196,6 +197,62 @@ router.get('/operadores', verificarRol(["Administrador"]), async(req, res) => {
         return res.status(200).json({ operadores });
     } catch (err) {
         return res.status(500).json({ message: "Hubo un error en el servidor", error: err.message });
+    }
+});
+
+router.post('/asignar/ruta', async(req, res) => {
+    try {
+        const { id, idRuta } = req.body;
+
+        if (!id) {
+            return res.status(404).json({ message: "No proporcionaste un usuario" });
+        }
+
+        if (!idRuta) {
+            return res.status(404).json({ message: "No proporcionaste una ruta" })
+        }
+
+        const consulta = await RutaSchema.findById(idRuta);
+        const usuario = await userSchema.findById(id);
+
+        if (!consulta) {
+            return res.status(404).json({ message: "Ruta inexsitente" })
+        }
+
+        if (!usuario) {
+            return res.status(404).json({ message: "No es un usuario valido" })
+        }
+
+        if (!usuario.rutasAsignadas.includes(consulta._id)) {
+            usuario.rutasAsignadas.push(consulta._id);
+            await usuario.save();
+        }
+
+        res.status(200).json({ message: "Ruta agregada con exito", usuario });
+
+    } catch (err) {
+        return res.status(500).json({ message: "error en el server", err })
+    }
+})
+
+router.delete('/ruta/quitar/:idUsuario/:idRuta', async(req, res) => {
+    try {
+        const { idUsuario, idRuta } = req.params;
+
+        const usuario = await userSchema.findById(idUsuario);
+        if (!usuario) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        usuario.rutasAsignadas = usuario.rutasAsignadas.filter(
+            ruta => ruta.toString() !== idRuta
+        );
+        await usuario.save();
+
+        res.status(200).json({ message: "Ruta removida exitosamente del usuario", usuario });
+    } catch (error) {
+        console.error("Error al quitar la ruta:", error);
+        res.status(500).json({ message: "Error del servidor", error });
     }
 });
 
